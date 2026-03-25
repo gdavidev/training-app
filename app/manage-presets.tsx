@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Preset } from '../entities/Preset';
-import { usePresetList, usePresetDelete } from '../hooks/query/usePreset';
+import { usePresetDelete, usePresetList } from '../hooks/query/usePreset';
 
 export default function ManagePresetsScreen() {
   const router = useRouter();
@@ -30,8 +30,7 @@ export default function ManagePresetsScreen() {
         <View style={styles.cardInfo}>
           <Text style={styles.presetName}>{item.name}</Text>
           <Text style={styles.presetMeta}>
-            {item.exercises.length + (item.cardioExercises?.length ?? 0)}{' '}
-            {item.exercises.length + (item.cardioExercises?.length ?? 0) === 1 ? 'exercise' : 'exercises'}
+            {item.exercises.length} {item.exercises.length === 1 ? 'exercise' : 'exercises'}
           </Text>
         </View>
         <Pressable onPress={() => handleDelete(item)} hitSlop={10} style={styles.deleteBtn}>
