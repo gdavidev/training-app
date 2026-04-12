@@ -1,19 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppDataSource } from '../../data-source';
-import { Exercise } from '../../entities/Exercise';
+import { CardioExercise } from '../../entities/CardioExercise';
 import { Execution } from '../../entities/Execution';
+import { ExecutionCardioExercise } from '../../entities/ExecutionCardioExercise';
 import { ExecutionExercise } from '../../entities/ExecutionExercise';
-import { Preset } from '../../entities/Preset';
-import { PresetExercise } from '../../entities/PresetExercise';
+import { Exercise } from '../../entities/Exercise';
 import { Muscle } from '../../entities/Muscle';
+import { Preset } from '../../entities/Preset';
+import { PresetCardioExercise } from '../../entities/PresetCardioExercise';
+import { PresetExercise } from '../../entities/PresetExercise';
 import { queryClient } from '../../hooks/query/queryClient';
 
 export default function ProfileScreen() {
-  const router = useRouter();
-
   const handleEraseHistory = () => {
     Alert.alert(
       'Erase history?',
@@ -36,6 +39,107 @@ export default function ProfileScreen() {
         },
       ],
     );
+  };
+
+  const handleExport = async () => {
+    try {
+      const muscles = await AppDataSource.getRepository(Muscle).find();
+      const exercises = await AppDataSource.getRepository(Exercise).find({ relations: ['muscles'] });
+      const cardioExercises = await AppDataSource.getRepository(CardioExercise).find();
+      const presets = await AppDataSource.getRepository(Preset).find({ relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise'] });
+      const executions = await AppDataSource.getRepository(Execution).find({ relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise', 'preset'] });
+
+      const data = { muscles, exercises, cardioExercises, presets, executions };
+      const json = JSON.stringify(data, null, 2);
+      const fileUri = FileSystem.cacheDirectory + 'davi-training-export.json';
+      await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export training data' });
+    } catch (error) {
+      console.error('Failed to export data', error);
+      Alert.alert('Error', 'Failed to export data.');
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json', copyToCacheDirectory: true });
+      if (result.canceled) return;
+
+      const fileUri = result.assets[0].uri;
+      const json = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.UTF8 });
+      const data = JSON.parse(json);
+
+      Alert.alert(
+        'Import data?',
+        'This will add imported data to your existing data. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import',
+            onPress: async () => {
+              try {
+                if (data.muscles?.length) {
+                  const repo = AppDataSource.getRepository(Muscle);
+                  for (const m of data.muscles) {
+                    const existing = await repo.findOne({ where: { key: m.key } });
+                    if (!existing) await repo.save(repo.create({ name: m.name, key: m.key }));
+                  }
+                }
+                if (data.exercises?.length) {
+                  const repo = AppDataSource.getRepository(Exercise);
+                  const muscleRepo = AppDataSource.getRepository(Muscle);
+                  for (const ex of data.exercises) {
+                    const muscleEntities = [];
+                    for (const m of (ex.muscles ?? [])) {
+                      const found = await muscleRepo.findOne({ where: { key: m.key } });
+                      if (found) muscleEntities.push(found);
+                    }
+                    const entity = repo.create({ name: ex.name, sets: ex.sets, reps: ex.reps, restTime: ex.restTime, weightingMethod: ex.weightingMethod, inputMode: ex.inputMode, muscles: muscleEntities });
+                    await repo.save(entity);
+                  }
+                }
+                if (data.cardioExercises?.length) {
+                  const repo = AppDataSource.getRepository(CardioExercise);
+                  for (const ce of data.cardioExercises) {
+                    await repo.save(repo.create({ name: ce.name, duration: ce.duration }));
+                  }
+                }
+                if (data.presets?.length) {
+                  const presetRepo = AppDataSource.getRepository(Preset);
+                  const peRepo = AppDataSource.getRepository(PresetExercise);
+                  const pceRepo = AppDataSource.getRepository(PresetCardioExercise);
+                  const exRepo = AppDataSource.getRepository(Exercise);
+                  const ceRepo = AppDataSource.getRepository(CardioExercise);
+                  for (const p of data.presets) {
+                    const preset = await presetRepo.save(presetRepo.create({ name: p.name }));
+                    for (const pe of (p.exercises ?? [])) {
+                      if (pe.exercise) {
+                        const ex = await exRepo.findOne({ where: { name: pe.exercise.name } });
+                        if (ex) await peRepo.save(peRepo.create({ preset, exercise: ex, order: pe.order }));
+                      }
+                    }
+                    for (const pce of (p.cardioExercises ?? [])) {
+                      if (pce.cardioExercise) {
+                        const ce = await ceRepo.findOne({ where: { name: pce.cardioExercise.name } });
+                        if (ce) await pceRepo.save(pceRepo.create({ preset, cardioExercise: ce, order: pce.order }));
+                      }
+                    }
+                  }
+                }
+                queryClient.invalidateQueries();
+                Alert.alert('Success', 'Data imported successfully.');
+              } catch (err) {
+                console.error('Failed to import data', err);
+                Alert.alert('Error', 'Failed to import data.');
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      console.error('Failed to read file', error);
+      Alert.alert('Error', 'Failed to read the selected file.');
+    }
   };
 
   const handleEraseStorage = () => {
@@ -67,44 +171,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
       <View style={styles.section}>
         <Text style={styles.title}>Profile</Text>
         <Text style={styles.subtitle}>
           Manage your exercises, presets and app data.
         </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>My Workouts</Text>
-
-        <Pressable
-          style={styles.menuButton}
-          onPress={() => router.push('/manage-exercises')}
-        >
-          <View style={styles.menuButtonLeft}>
-            <Ionicons name="barbell-outline" size={22} color="#4dabf7" />
-            <View style={styles.menuButtonTextGroup}>
-              <Text style={styles.menuButtonLabel}>My Exercises</Text>
-              <Text style={styles.menuButtonHint}>View, add or delete exercises</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#555" />
-        </Pressable>
-
-        <Pressable
-          style={styles.menuButton}
-          onPress={() => router.push('/manage-presets')}
-        >
-          <View style={styles.menuButtonLeft}>
-            <Ionicons name="layers-outline" size={22} color="#4dabf7" />
-            <View style={styles.menuButtonTextGroup}>
-              <Text style={styles.menuButtonLabel}>My Presets</Text>
-              <Text style={styles.menuButtonHint}>View, add or delete presets</Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#555" />
-        </Pressable>
       </View>
 
       <View style={styles.section}>
@@ -127,8 +199,26 @@ export default function ProfileScreen() {
         <Text style={styles.helperText}>
           This only affects data stored on this device. It cannot be undone.
         </Text>
+
+        <Pressable style={[styles.dataButton, { marginTop: 20 }]} onPress={handleExport}>
+          <Ionicons name="download-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.eraseButtonText}>Export data</Text>
+        </Pressable>
+
+        <Text style={styles.helperText}>
+          Save all exercises, presets and history as a JSON file.
+        </Text>
+
+        <Pressable style={[styles.dataButton, { marginTop: 14 }]} onPress={handleImport}>
+          <Ionicons name="push-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.eraseButtonText}>Import data</Text>
+        </Pressable>
+
+        <Text style={styles.helperText}>
+          Load exercises, presets and history from a previously exported JSON file.
+        </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -136,7 +226,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
-    padding: 16,
   },
   section: {
     marginBottom: 28,
@@ -158,33 +247,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
-  },
-  menuButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1e1e1e',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-  },
-  menuButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  menuButtonTextGroup: {
-    marginLeft: 14,
-  },
-  menuButtonLabel: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  menuButtonHint: {
-    color: '#888',
-    fontSize: 12,
-    marginTop: 2,
   },
   eraseHistoryButton: {
     flexDirection: 'row',
@@ -208,6 +270,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  dataButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4dabf7',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
   },
   helperText: {
     marginTop: 10,

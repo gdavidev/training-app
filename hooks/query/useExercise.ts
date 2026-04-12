@@ -42,6 +42,8 @@ export function useExerciseCreate() {
       reps: string;
       restTime: string;
       muscleKeys: string[];
+      weightingMethod?: string;
+      inputMode?: string;
     }) => {
       const muscleRepo = AppDataSource.getRepository(Muscle);
       const muscles = await Promise.all(
@@ -60,6 +62,8 @@ export function useExerciseCreate() {
         reps: data.reps,
         restTime: data.restTime,
         muscles,
+        ...(data.weightingMethod && { weightingMethod: data.weightingMethod }),
+        ...(data.inputMode && { inputMode: data.inputMode }),
       });
 
       return repo().save(exercise);
@@ -82,6 +86,8 @@ export function useExerciseUpdate() {
       reps?: string;
       restTime?: string;
       muscleKeys?: string[];
+      weightingMethod?: string;
+      inputMode?: string;
     }) => {
       const exercise = await repo().findOneOrFail({
         where: { id },

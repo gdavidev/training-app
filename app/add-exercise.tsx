@@ -36,7 +36,8 @@ export default function AddScreen() {
     const [sets, setSets] = useState('');
     const [reps, setReps] = useState('');
     const [restTime, setRestTime] = useState('');
-    const [duration, setDuration] = useState('');
+    const [durationMinutes, setDurationMinutes] = useState('');
+    const [durationSeconds, setDurationSeconds] = useState('');
     const [selectedMuscles, setSelectedMuscles] = useState<Slug[]>([]);
     const [bodySide, setBodySide] = useState<'front' | 'back'>('front');
     const [initialized, setInitialized] = useState(false);
@@ -57,7 +58,8 @@ export default function AddScreen() {
         } else if (editingCardioExercise) {
             setExerciseType('cardio');
             setName(editingCardioExercise.name);
-            setDuration(String(editingCardioExercise.duration));
+            setDurationMinutes(String(Math.floor(editingCardioExercise.duration / 60)));
+            setDurationSeconds(String(editingCardioExercise.duration % 60));
             setInitialized(true);
         } else if (params.name || params.muscles) {
             if (params.name) setName(String(params.name));
@@ -80,9 +82,9 @@ export default function AddScreen() {
 
         try {
             if (exerciseType === 'cardio') {
-                const durationSeconds = parseInt(duration, 10);
-                if (!durationSeconds || durationSeconds <= 0) {
-                    Alert.alert('Missing Info', 'Please enter a valid duration in seconds.');
+                const totalDuration = parseInt(durationMinutes || '0', 10) * 60 + parseInt(durationSeconds || '0', 10);
+                if (!totalDuration || totalDuration <= 0) {
+                    Alert.alert('Missing Info', 'Please enter a valid duration.');
                     return;
                 }
 
@@ -90,12 +92,12 @@ export default function AddScreen() {
                     await updateCardioExercise.mutateAsync({
                         id: editingCardioExercise.id,
                         name: name.trim(),
-                        duration: durationSeconds,
+                        duration: totalDuration,
                     });
                 } else {
                     await createCardioExercise.mutateAsync({
                         name: name.trim(),
-                        duration: durationSeconds,
+                        duration: totalDuration,
                     });
                 }
             } else {
@@ -134,11 +136,12 @@ export default function AddScreen() {
         });
     };
 
-    const durationMinutes = Math.floor((parseInt(duration, 10) || 0) / 60);
-    const durationRemainder = (parseInt(duration, 10) || 0) % 60;
-    const durationPreview = duration
-        ? `${durationMinutes}m ${durationRemainder}s`
-        : '';
+    const totalDurationPreview = (() => {
+        const m = parseInt(durationMinutes || '0', 10);
+        const s = parseInt(durationSeconds || '0', 10);
+        if (m === 0 && s === 0) return '';
+        return `Total: ${m}m ${s}s`;
+    })();
 
     return (
         <KeyboardAvoidingView
@@ -248,17 +251,33 @@ export default function AddScreen() {
                     </>
                 ) : (
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Duration (seconds)</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g. 1800 for 30 minutes"
-                            placeholderTextColor="#666"
-                            value={duration}
-                            onChangeText={setDuration}
-                            keyboardType="numeric"
-                        />
-                        {durationPreview ? (
-                            <Text style={styles.durationPreview}>{durationPreview}</Text>
+                        <Text style={styles.label}>Duration</Text>
+                        <View style={styles.row}>
+                            <View style={[styles.inputGroup, styles.flex1, { marginRight: 8, marginBottom: 0 }]}>
+                                <Text style={styles.label}>Minutes</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="0"
+                                    placeholderTextColor="#666"
+                                    value={durationMinutes}
+                                    onChangeText={setDurationMinutes}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                            <View style={[styles.inputGroup, styles.flex1, { marginLeft: 8, marginBottom: 0 }]}>
+                                <Text style={styles.label}>Seconds</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="0"
+                                    placeholderTextColor="#666"
+                                    value={durationSeconds}
+                                    onChangeText={setDurationSeconds}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                        </View>
+                        {totalDurationPreview ? (
+                            <Text style={styles.durationPreview}>{totalDurationPreview}</Text>
                         ) : null}
                     </View>
                 )}

@@ -17,6 +17,7 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ExercisePicker } from '../components/ExercisePicker';
 import { CardioExercise } from '../entities/CardioExercise';
 import { Exercise } from '../entities/Exercise';
 import { useCardioExerciseList } from '../hooks/query/useCardioExercise';
@@ -52,6 +53,7 @@ export default function AddPresetScreen() {
   const [orderedItems, setOrderedItems] = useState<PresetItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [showPickerModal, setShowPickerModal] = useState(false);
 
   useEffect(() => {
     if (initialized || !editingPreset) return;
@@ -102,16 +104,6 @@ export default function AddPresetScreen() {
       })
       .filter((e): e is OrderedEntry => !!e),
     [orderedItems, exerciseMap, cardioMap],
-  );
-
-  const availableExercises = useMemo(
-    () => exercises.filter(e => !selectedStrengthIds.has(e.id)),
-    [exercises, selectedStrengthIds],
-  );
-
-  const availableCardioExercises = useMemo(
-    () => cardioExercises.filter(e => !selectedCardioIds.has(e.id)),
-    [cardioExercises, selectedCardioIds],
   );
 
   const addExercise = useCallback((id: number) => {
@@ -217,45 +209,6 @@ export default function AddPresetScreen() {
     [removeItem],
   );
 
-  const renderAvailableItem = ({ item }: { item: Exercise }) => (
-    <Pressable
-      onPress={() => addExercise(item.id)}
-      style={styles.exerciseItem}
-    >
-      <View style={styles.exerciseRow}>
-        <View style={styles.exerciseInfo}>
-          <Text style={styles.exerciseName}>{item.name}</Text>
-          <Text style={styles.exerciseMeta}>
-            {item.sets} sets x {item.reps} reps
-          </Text>
-        </View>
-        <Ionicons name="add-circle-outline" size={22} color="#4dabf7" />
-      </View>
-    </Pressable>
-  );
-
-  const renderAvailableCardioItem = ({ item }: { item: CardioExercise }) => (
-    <Pressable
-      onPress={() => addCardioExercise(item.id)}
-      style={styles.exerciseItem}
-    >
-      <View style={styles.exerciseRow}>
-        <View style={styles.exerciseInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.exerciseName}>{item.name}</Text>
-            <View style={styles.cardioBadge}>
-              <Ionicons name="heart" size={10} color="#ff6b6b" />
-            </View>
-          </View>
-          <Text style={[styles.exerciseMeta, { color: '#ff6b6b' }]}>
-            {formatDuration(item.duration)} duration
-          </Text>
-        </View>
-        <Ionicons name="add-circle-outline" size={22} color="#ff6b6b" />
-      </View>
-    </Pressable>
-  );
-
   const hasAnyExercises = exercises.length + cardioExercises.length > 0;
 
   return (
@@ -269,6 +222,7 @@ export default function AddPresetScreen() {
           style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled={true}
         >
           <Text style={styles.title}>{isEditing ? 'Edit preset' : 'Create preset'}</Text>
           <Text style={styles.subtitle}>
@@ -308,12 +262,13 @@ export default function AddPresetScreen() {
                 setOrderedItems(data.map(e => ({ kind: e.kind, id: e.id })))
               }
               scrollEnabled={false}
+              activationDistance={10}
               containerStyle={styles.presetList}
             />
           )}
 
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Available exercises</Text>
+            <Text style={styles.sectionTitle}>Add exercises</Text>
             <Pressable
               style={styles.addExerciseShortcut}
               onPress={() => router.push('/add-exercise')}
@@ -333,26 +288,24 @@ export default function AddPresetScreen() {
                 Create an exercise first, then add it to this preset.
               </Text>
             </View>
-          ) : availableExercises.length === 0 && availableCardioExercises.length === 0 ? (
-            <View style={styles.emptyPresetState}>
-              <Text style={styles.emptyPresetText}>
-                All exercises have been added to this preset.
-              </Text>
-            </View>
           ) : (
-            <View style={styles.availableList}>
-              {availableExercises.map(item => (
-                <React.Fragment key={item.id}>
-                  {renderAvailableItem({ item })}
-                </React.Fragment>
-              ))}
-              {availableCardioExercises.map(item => (
-                <React.Fragment key={`cardio-${item.id}`}>
-                  {renderAvailableCardioItem({ item })}
-                </React.Fragment>
-              ))}
-            </View>
+            <Pressable
+              style={styles.addExerciseButton}
+              onPress={() => setShowPickerModal(true)}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#4dabf7" />
+              <Text style={styles.addExerciseButtonText}>Add exercise</Text>
+            </Pressable>
           )}
+
+          <ExercisePicker
+            visible={showPickerModal}
+            onClose={() => setShowPickerModal(false)}
+            onSelectExercise={(ex) => { addExercise(ex.id); setShowPickerModal(false); }}
+            onSelectCardioExercise={(ce) => { addCardioExercise(ce.id); setShowPickerModal(false); }}
+            excludeExerciseIds={selectedStrengthIds}
+            excludeCardioExerciseIds={selectedCardioIds}
+          />
 
           <Pressable
             style={[
@@ -486,8 +439,23 @@ const styles = StyleSheet.create({
   presetList: {
     marginBottom: 24,
   },
-  availableList: {
+  addExerciseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#4dabf7',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    backgroundColor: '#1a2633',
+  },
+  addExerciseButtonText: {
+    color: '#4dabf7',
+    fontSize: 15,
+    fontWeight: '600',
   },
   exerciseItem: {
     backgroundColor: '#1e1e1e',

@@ -17,7 +17,7 @@ type Props = {
 };
 
 export function TrainingDayCard({ day, compact }: Props) {
-  const exerciseCount = day.execution.exercises?.length ?? 0;
+  const exerciseCount = (day.execution.exercises?.length ?? 0) + (day.execution.cardioExercises?.length ?? 0);
 
   return (
     <View style={styles.card}>

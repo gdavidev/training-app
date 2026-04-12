@@ -162,11 +162,6 @@ export default function TrainingSelectionScreen() {
               </Text>
             </View>
           }
-          ListFooterComponent={
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Or create a custom exercise from scratch.</Text>
-            </View>
-          }
         />
       )}
     </View>

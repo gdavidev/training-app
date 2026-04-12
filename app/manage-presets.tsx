@@ -30,7 +30,8 @@ export default function ManagePresetsScreen() {
         <View style={styles.cardInfo}>
           <Text style={styles.presetName}>{item.name}</Text>
           <Text style={styles.presetMeta}>
-            {item.exercises.length} {item.exercises.length === 1 ? 'exercise' : 'exercises'}
+            {item.exercises.length + (item.cardioExercises ?? []).length}{' '}
+            {item.exercises.length + (item.cardioExercises ?? []).length === 1 ? 'exercise' : 'exercises'}
           </Text>
         </View>
         <Pressable onPress={() => handleDelete(item)} hitSlop={10} style={styles.deleteBtn}>

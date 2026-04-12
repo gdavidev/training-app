@@ -1,16 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Exercise } from '../entities/Exercise';
 import { CardioExercise } from '../entities/CardioExercise';
 import { useExerciseList, useExerciseDelete } from '../hooks/query/useExercise';
 import { useCardioExerciseList, useCardioExerciseDelete } from '../hooks/query/useCardioExercise';
 
+type ExerciseTab = 'strength' | 'cardio';
+
 type ListItem =
   | { type: 'strength'; data: Exercise }
-  | { type: 'cardio'; data: CardioExercise }
-  | { type: 'section'; title: string };
+  | { type: 'cardio'; data: CardioExercise };
 
 export default function ManageExercisesScreen() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function ManageExercisesScreen() {
   const { data: cardioExercises = [], isLoading: loadingCardio } = useCardioExerciseList();
   const deleteExercise = useExerciseDelete();
   const deleteCardioExercise = useCardioExerciseDelete();
+  const [activeTab, setActiveTab] = useState<ExerciseTab>('strength');
 
   const isLoading = loadingEx || loadingCardio;
 
@@ -49,33 +51,12 @@ export default function ManageExercisesScreen() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const listData: ListItem[] = [
-    ...(exercises.length > 0
-      ? [{ type: 'section' as const, title: 'Strength Exercises' }]
-      : []),
-    ...exercises.map((e) => ({ type: 'strength' as const, data: e })),
-    ...(cardioExercises.length > 0
-      ? [{ type: 'section' as const, title: 'Cardio Exercises' }]
-      : []),
-    ...cardioExercises.map((e) => ({ type: 'cardio' as const, data: e })),
-  ];
+  const listData: ListItem[] =
+    activeTab === 'strength'
+      ? exercises.map((e) => ({ type: 'strength' as const, data: e }))
+      : cardioExercises.map((e) => ({ type: 'cardio' as const, data: e }));
 
   const renderItem = ({ item }: { item: ListItem }) => {
-    if (item.type === 'section') {
-      return (
-        <View style={styles.sectionHeader}>
-          <Ionicons
-            name={item.title.startsWith('Cardio') ? 'heart' : 'barbell-outline'}
-            size={16}
-            color={item.title.startsWith('Cardio') ? '#ff6b6b' : '#4dabf7'}
-          />
-          <Text style={[styles.sectionTitle, item.title.startsWith('Cardio') && { color: '#ff6b6b' }]}>
-            {item.title}
-          </Text>
-        </View>
-      );
-    }
-
     if (item.type === 'cardio') {
       const ce = item.data;
       return (
@@ -133,6 +114,27 @@ export default function ManageExercisesScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.tabBar}>
+        <Pressable
+          style={[styles.tab, activeTab === 'strength' && styles.tabActiveStrength]}
+          onPress={() => setActiveTab('strength')}
+        >
+          <Ionicons name="barbell-outline" size={18} color={activeTab === 'strength' ? '#4dabf7' : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'strength' && styles.tabTextActiveStrength]}>
+            Strength
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tab, activeTab === 'cardio' && styles.tabActiveCardio]}
+          onPress={() => setActiveTab('cardio')}
+        >
+          <Ionicons name="heart-outline" size={18} color={activeTab === 'cardio' ? '#ff6b6b' : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'cardio' && styles.tabTextActiveCardio]}>
+            Cardio
+          </Text>
+        </Pressable>
+      </View>
+
       {isLoading ? (
         <View style={styles.center}>
           <Text style={styles.emptyText}>Loading exercises...</Text>
@@ -145,13 +147,15 @@ export default function ManageExercisesScreen() {
             Create your first exercise to get started.
           </Text>
         </View>
+      ) : listData.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name={activeTab === 'strength' ? 'barbell-outline' : 'heart-outline'} size={64} color="#666" />
+          <Text style={styles.emptyText}>No {activeTab} exercises yet.</Text>
+        </View>
       ) : (
         <FlatList
           data={listData}
-          keyExtractor={(item, index) => {
-            if (item.type === 'section') return `section-${item.title}`;
-            return `${item.type}-${item.data.id}`;
-          }}
+          keyExtractor={(item) => `${item.type}-${item.data.id}`}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
         />
@@ -187,6 +191,44 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 24,
   },
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#1e1e1e',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  tabActiveStrength: {
+    backgroundColor: '#1a2633',
+    borderColor: '#4dabf7',
+  },
+  tabActiveCardio: {
+    backgroundColor: '#2a1a1a',
+    borderColor: '#ff6b6b',
+  },
+  tabText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  tabTextActiveStrength: {
+    color: '#4dabf7',
+  },
+  tabTextActiveCardio: {
+    color: '#ff6b6b',
+  },
   listContainer: {
     padding: 16,
     paddingBottom: 100,
@@ -221,18 +263,6 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 8,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    color: '#4dabf7',
-    fontSize: 15,
-    fontWeight: '700',
   },
   cardioBadge: {
     backgroundColor: 'rgba(255, 107, 107, 0.15)',

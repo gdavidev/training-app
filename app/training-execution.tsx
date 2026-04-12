@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -12,6 +11,8 @@ import {
   View,
   Vibration,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ExercisePicker } from '../components/ExercisePicker';
 import { ExecutionExercise } from '../entities/ExecutionExercise';
 import { ExecutionCardioExercise } from '../entities/ExecutionCardioExercise';
 import {
@@ -31,7 +32,6 @@ import {
   useExecutionCardioExerciseUpdate,
 } from '../hooks/query/useExecutionCardioExercise';
 import { useExerciseList } from '../hooks/query/useExercise';
-import { useCardioExerciseList } from '../hooks/query/useCardioExercise';
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -51,15 +51,14 @@ export default function TrainingExecutionScreen() {
   const toggleCardioCompleted = useExecutionCardioExerciseToggleCompleted();
   const updateCardioExercise = useExecutionCardioExerciseUpdate();
   const { data: allExercises = [] } = useExerciseList();
-  const { data: allCardioExercises = [] } = useCardioExerciseList();
   const { data: lastWeights } = useLastWeightsMap();
+
+  const insets = useSafeAreaInsets();
 
   const [activeTimerId, setActiveTimerId] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState('');
-  const [addModalTab, setAddModalTab] = useState<'exercise' | 'cardio'>('exercise');
 
   const [activeCardioTimerId, setActiveCardioTimerId] = useState<number | null>(null);
   const [cardioElapsed, setCardioElapsed] = useState(0);
@@ -179,20 +178,10 @@ export default function TrainingExecutionScreen() {
   const alreadyAddedIds = new Set(
     execution?.exercises.map((ee) => (ee.exercise as any)?.id).filter(Boolean),
   );
-  const filteredExercises = allExercises.filter((ex) => {
-    if (alreadyAddedIds.has(ex.id)) return false;
-    if (!exerciseSearch.trim()) return true;
-    return ex.name.toLowerCase().includes(exerciseSearch.toLowerCase());
-  });
 
   const alreadyAddedCardioIds = new Set(
     (execution?.cardioExercises ?? []).map((ce) => (ce.cardioExercise as any)?.id).filter(Boolean),
   );
-  const filteredCardioExercises = allCardioExercises.filter((ce) => {
-    if (alreadyAddedCardioIds.has(ce.id)) return false;
-    if (!exerciseSearch.trim()) return true;
-    return ce.name.toLowerCase().includes(exerciseSearch.toLowerCase());
-  });
 
   const handleAddExerciseToExecution = async (exerciseId: number) => {
     if (!execution) return;
@@ -208,7 +197,6 @@ export default function TrainingExecutionScreen() {
     } as any);
     await refetch();
     setShowAddModal(false);
-    setExerciseSearch('');
   };
 
   const handleAddCardioToExecution = async (cardioExerciseId: number) => {
@@ -221,7 +209,6 @@ export default function TrainingExecutionScreen() {
     } as any);
     await refetch();
     setShowAddModal(false);
-    setExerciseSearch('');
   };
 
   const cardioExercises = execution?.cardioExercises ?? [];
@@ -262,34 +249,58 @@ export default function TrainingExecutionScreen() {
         </View>
 
         <View style={styles.statsContainer}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Weight</Text>
-            <View style={styles.weightInputRow}>
-              <TextInput
-                style={styles.weightInput}
-                keyboardType="numeric"
-                defaultValue={String(item.weight ?? 0)}
-                onEndEditing={(e) => {
-                  const val = parseFloat(e.nativeEvent.text);
-                  if (!isNaN(val)) {
-                    updateExercise.mutate(
-                      { id: item.id, weight: String(val) },
-                      { onSuccess: () => refetch() },
-                    );
-                  }
-                }}
-                selectTextOnFocus
-              />
-              <Text style={styles.weightUnit}>kg</Text>
+          {item.exercise?.weightingMethod !== 'none' ? (
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Weight</Text>
+              <View style={styles.weightInputRow}>
+                <TextInput
+                  style={styles.weightInput}
+                  keyboardType="numeric"
+                  defaultValue={String(item.weight ?? 0)}
+                  onEndEditing={(e) => {
+                    const val = parseFloat(e.nativeEvent.text);
+                    if (!isNaN(val)) {
+                      updateExercise.mutate(
+                        { id: item.id, weight: String(val) },
+                        { onSuccess: () => refetch() },
+                      );
+                    }
+                  }}
+                  selectTextOnFocus
+                />
+                <Text style={styles.weightUnit}>
+                  {item.exercise?.weightingMethod === 'double' ? 'kg x2' : 'kg'}
+                </Text>
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Weight</Text>
+              <Text style={styles.statValue}>BW</Text>
+            </View>
+          )}
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Sets</Text>
             <Text style={styles.statValue}>{item.exercise?.sets ?? '-'}</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Reps</Text>
-            <Text style={styles.statValue}>{item.exercise?.reps ?? '-'}</Text>
+            <Text style={styles.statLabel}>
+              {item.exercise?.inputMode === 'hold' ? 'Hold' : 'Reps'}
+            </Text>
+            <TextInput
+              style={styles.weightInput}
+              defaultValue={item.exercise?.reps ?? ''}
+              onEndEditing={(e) => {
+                const val = e.nativeEvent.text.trim();
+                if (val) {
+                  updateExercise.mutate(
+                    { id: item.id, completedReps: val },
+                    { onSuccess: () => refetch() },
+                  );
+                }
+              }}
+              selectTextOnFocus
+            />
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Rest</Text>
@@ -533,7 +544,7 @@ export default function TrainingExecutionScreen() {
             {cardioExercises.map(renderCardioExercise)}
             <Pressable
               style={styles.addExerciseButton}
-              onPress={() => { setAddModalTab('exercise'); setShowAddModal(true); }}
+              onPress={() => setShowAddModal(true)}
             >
               <Ionicons name="add-circle-outline" size={20} color="#4dabf7" />
               <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
@@ -542,113 +553,16 @@ export default function TrainingExecutionScreen() {
         }
       />
 
-      <Modal
+      <ExercisePicker
         visible={showAddModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
-          setShowAddModal(false);
-          setExerciseSearch('');
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Exercise</Text>
-              <Pressable
-                onPress={() => {
-                  setShowAddModal(false);
-                  setExerciseSearch('');
-                }}
-                hitSlop={12}
-              >
-                <Ionicons name="close" size={24} color="#aaa" />
-              </Pressable>
-            </View>
-            <View style={styles.modalTabs}>
-              <Pressable
-                style={[styles.modalTab, addModalTab === 'exercise' && styles.modalTabActive]}
-                onPress={() => setAddModalTab('exercise')}
-              >
-                <Ionicons name="barbell-outline" size={16} color={addModalTab === 'exercise' ? '#4dabf7' : '#666'} />
-                <Text style={[styles.modalTabText, addModalTab === 'exercise' && styles.modalTabTextActive]}>
-                  Strength
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalTab, addModalTab === 'cardio' && styles.modalTabActive]}
-                onPress={() => setAddModalTab('cardio')}
-              >
-                <Ionicons name="heart-outline" size={16} color={addModalTab === 'cardio' ? '#ff6b6b' : '#666'} />
-                <Text style={[styles.modalTabText, addModalTab === 'cardio' && styles.modalTabTextActive, addModalTab === 'cardio' && { color: '#ff6b6b' }]}>
-                  Cardio
-                </Text>
-              </Pressable>
-            </View>
-            <TextInput
-              style={styles.searchInput}
-              placeholder={addModalTab === 'exercise' ? 'Search exercises...' : 'Search cardio...'}
-              placeholderTextColor="#666"
-              value={exerciseSearch}
-              onChangeText={setExerciseSearch}
-              autoFocus
-            />
-            {addModalTab === 'exercise' ? (
-              <FlatList
-                data={filteredExercises}
-                keyExtractor={(item) => String(item.id)}
-                style={styles.modalList}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={styles.exercisePickerRow}
-                    onPress={() => handleAddExerciseToExecution(item.id)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.exercisePickerName}>{item.name}</Text>
-                      <Text style={styles.exercisePickerMeta}>
-                        {item.sets} sets x {item.reps} reps · {item.restTime || '60'}s rest
-                      </Text>
-                    </View>
-                    <Ionicons name="add" size={22} color="#4dabf7" />
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyModalText}>
-                    {exerciseSearch ? 'No matching exercises' : 'All exercises already added'}
-                  </Text>
-                }
-              />
-            ) : (
-              <FlatList
-                data={filteredCardioExercises}
-                keyExtractor={(item) => String(item.id)}
-                style={styles.modalList}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={styles.exercisePickerRow}
-                    onPress={() => handleAddCardioToExecution(item.id)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.exercisePickerName}>{item.name}</Text>
-                      <Text style={[styles.exercisePickerMeta, { color: '#ff6b6b' }]}>
-                        {formatTime(item.duration)} duration
-                      </Text>
-                    </View>
-                    <Ionicons name="add" size={22} color="#ff6b6b" />
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <Text style={styles.emptyModalText}>
-                    {exerciseSearch ? 'No matching cardio exercises' : 'All cardio exercises already added'}
-                  </Text>
-                }
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowAddModal(false)}
+        onSelectExercise={(ex) => handleAddExerciseToExecution(ex.id)}
+        onSelectCardioExercise={(ce) => handleAddCardioToExecution(ce.id)}
+        excludeExerciseIds={alreadyAddedIds}
+        excludeCardioExerciseIds={alreadyAddedCardioIds}
+      />
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <Pressable style={styles.finishButton} onPress={handleFinishTraining}>
           <Ionicons name="checkmark-done" size={20} color="#fff" />
           <Text style={styles.finishButtonText}>Finish Training</Text>
@@ -722,7 +636,7 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   card: {
     backgroundColor: '#1e1e1e',
@@ -975,68 +889,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#1e1e1e',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 32,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    paddingBottom: 8,
-  },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  searchInput: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    color: '#fff',
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  modalList: {
-    paddingHorizontal: 16,
-  },
-  exercisePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-    gap: 12,
-  },
-  exercisePickerName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  exercisePickerMeta: {
-    color: '#888',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  emptyModalText: {
-    color: '#666',
-    fontSize: 14,
-    textAlign: 'center',
-    paddingVertical: 24,
-  },
   cardioSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1062,34 +914,5 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 11,
     fontWeight: '600',
-  },
-  modalTabs: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    gap: 8,
-  },
-  modalTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#2a2a2a',
-  },
-  modalTabActive: {
-    backgroundColor: '#1a2633',
-    borderWidth: 1,
-    borderColor: '#4dabf7',
-  },
-  modalTabText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  modalTabTextActive: {
-    color: '#4dabf7',
   },
 });

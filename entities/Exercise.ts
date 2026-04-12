@@ -26,6 +26,12 @@ export class Exercise {
   @Column({ default: "" })
   restTime: string;
 
+  @Column({ default: 'single' })
+  weightingMethod: string;  // 'single' | 'double' | 'none'
+
+  @Column({ default: 'reps' })
+  inputMode: string;  // 'reps' | 'hold'
+
   @ManyToMany(() => Muscle, { eager: true })
   @JoinTable()
   muscles: Relation<Muscle[]>;
