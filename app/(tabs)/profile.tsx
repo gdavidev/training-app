@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { requireNativeModule } from 'expo-modules-core';
 import React from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppDataSource } from '../../data-source';
 import { CardioExercise } from '../../entities/CardioExercise';
 import { Execution } from '../../entities/Execution';
@@ -16,7 +18,16 @@ import { PresetCardioExercise } from '../../entities/PresetCardioExercise';
 import { PresetExercise } from '../../entities/PresetExercise';
 import { queryClient } from '../../hooks/query/queryClient';
 
+function getDbPath(): string {
+  const defaultDir: string = requireNativeModule('ExpoSQLite').defaultDatabaseDirectory;
+  const base = defaultDir.replace(/\/*$/, '');
+  const path = `${base}/davi-training.db`;
+  return path.startsWith('/') ? `file://${path}` : path;
+}
+
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
+
   const handleEraseHistory = () => {
     Alert.alert(
       'Erase history?',
@@ -46,14 +57,72 @@ export default function ProfileScreen() {
       const muscles = await AppDataSource.getRepository(Muscle).find();
       const exercises = await AppDataSource.getRepository(Exercise).find({ relations: ['muscles'] });
       const cardioExercises = await AppDataSource.getRepository(CardioExercise).find();
-      const presets = await AppDataSource.getRepository(Preset).find({ relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise'] });
-      const executions = await AppDataSource.getRepository(Execution).find({ relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise', 'preset'] });
+      const presets = await AppDataSource.getRepository(Preset).find({
+        relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise'],
+      });
+      const executions = await AppDataSource.getRepository(Execution).find({
+        relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise', 'preset'],
+      });
 
-      const data = { muscles, exercises, cardioExercises, presets, executions };
+      // Serialize as plain DTOs to avoid circular references created by TypeORM back-references
+      const data = {
+        muscles,
+        exercises: exercises.map((e) => ({
+          id: e.id,
+          name: e.name,
+          sets: e.sets,
+          reps: e.reps,
+          restTime: e.restTime,
+          weightingMethod: e.weightingMethod,
+          inputMode: e.inputMode,
+          muscles: e.muscles?.map((m) => ({ id: m.id, name: m.name, key: m.key })),
+        })),
+        cardioExercises,
+        presets: presets.map((p) => ({
+          id: p.id,
+          name: p.name,
+          exercises: p.exercises?.map((pe) => ({
+            id: pe.id,
+            order: pe.order,
+            exercise: pe.exercise ? { id: pe.exercise.id, name: pe.exercise.name } : null,
+          })),
+          cardioExercises: p.cardioExercises?.map((pce) => ({
+            id: pce.id,
+            order: pce.order,
+            cardioExercise: pce.cardioExercise
+              ? { id: pce.cardioExercise.id, name: pce.cardioExercise.name }
+              : null,
+          })),
+        })),
+        executions: executions.map((ex) => ({
+          id: ex.id,
+          startedAt: ex.startedAt,
+          isCompleted: ex.isCompleted,
+          createAt: ex.createAt,
+          preset: ex.preset ? { id: ex.preset.id, name: ex.preset.name } : null,
+          exercises: ex.exercises?.map((ee) => ({
+            id: ee.id,
+            weight: ee.weight,
+            completed: ee.completed,
+            completedReps: ee.completedReps,
+            completedSets: ee.completedSets,
+            exercise: ee.exercise ? { id: ee.exercise.id, name: ee.exercise.name } : null,
+          })),
+          cardioExercises: ex.cardioExercises?.map((ece) => ({
+            id: ece.id,
+            completed: ece.completed,
+            elapsedSeconds: ece.elapsedSeconds,
+            cardioExercise: ece.cardioExercise
+              ? { id: ece.cardioExercise.id, name: ece.cardioExercise.name }
+              : null,
+          })),
+        })),
+      };
+
       const json = JSON.stringify(data, null, 2);
-      const fileUri = FileSystem.cacheDirectory + 'davi-training-export.json';
-      await FileSystem.writeAsStringAsync(fileUri, json, { encoding: FileSystem.EncodingType.UTF8 });
-      await Sharing.shareAsync(fileUri, { mimeType: 'application/json', dialogTitle: 'Export training data' });
+      const exportUri = FileSystem.cacheDirectory + 'davi-training-export.json';
+      await FileSystem.writeAsStringAsync(exportUri, json, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(exportUri, { mimeType: 'application/json', dialogTitle: 'Export training data' });
     } catch (error) {
       console.error('Failed to export data', error);
       Alert.alert('Error', 'Failed to export data.');
@@ -126,6 +195,59 @@ export default function ProfileScreen() {
                     }
                   }
                 }
+                if (data.executions?.length) {
+                  const executionRepo = AppDataSource.getRepository(Execution);
+                  const eeRepo = AppDataSource.getRepository(ExecutionExercise);
+                  const eceRepo = AppDataSource.getRepository(ExecutionCardioExercise);
+                  const exRepo = AppDataSource.getRepository(Exercise);
+                  const ceRepo = AppDataSource.getRepository(CardioExercise);
+                  const presetRepo = AppDataSource.getRepository(Preset);
+                  for (const ex of data.executions) {
+                    let preset = null;
+                    if (ex.preset?.name) {
+                      preset = await presetRepo.findOne({ where: { name: ex.preset.name } });
+                    }
+                    const execution = await executionRepo.save(
+                      executionRepo.create({
+                        startedAt: ex.startedAt ? new Date(ex.startedAt) : undefined,
+                        isCompleted: ex.isCompleted ?? false,
+                        preset: preset ?? undefined,
+                      }),
+                    );
+                    for (const ee of (ex.exercises ?? [])) {
+                      if (ee.exercise?.name) {
+                        const exercise = await exRepo.findOne({ where: { name: ee.exercise.name } });
+                        if (exercise) {
+                          await eeRepo.save(
+                            eeRepo.create({
+                              execution,
+                              exercise,
+                              weight: ee.weight,
+                              completed: ee.completed ?? false,
+                              completedReps: ee.completedReps ?? '',
+                              completedSets: ee.completedSets ?? 0,
+                            }),
+                          );
+                        }
+                      }
+                    }
+                    for (const ece of (ex.cardioExercises ?? [])) {
+                      if (ece.cardioExercise?.name) {
+                        const cardioExercise = await ceRepo.findOne({ where: { name: ece.cardioExercise.name } });
+                        if (cardioExercise) {
+                          await eceRepo.save(
+                            eceRepo.create({
+                              execution,
+                              cardioExercise,
+                              completed: ece.completed ?? false,
+                              elapsedSeconds: ece.elapsedSeconds ?? 0,
+                            }),
+                          );
+                        }
+                      }
+                    }
+                  }
+                }
                 queryClient.invalidateQueries();
                 Alert.alert('Success', 'Data imported successfully.');
               } catch (err) {
@@ -139,6 +261,17 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Failed to read file', error);
       Alert.alert('Error', 'Failed to read the selected file.');
+    }
+  };
+
+  const handleShareDb = async () => {
+    try {
+      const destUri = FileSystem.cacheDirectory + 'davi-training.db';
+      await FileSystem.copyAsync({ from: getDbPath(), to: destUri });
+      await Sharing.shareAsync(destUri, { mimeType: 'application/octet-stream', dialogTitle: 'Share database' });
+    } catch (error) {
+      console.error('Failed to share database', error);
+      Alert.alert('Error', 'Failed to share the database file.');
     }
   };
 
@@ -171,7 +304,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16, paddingBottom: 16 + insets.bottom }}>
       <View style={styles.section}>
         <Text style={styles.title}>Profile</Text>
         <Text style={styles.subtitle}>
@@ -216,6 +349,15 @@ export default function ProfileScreen() {
 
         <Text style={styles.helperText}>
           Load exercises, presets and history from a previously exported JSON file.
+        </Text>
+
+        <Pressable style={[styles.shareDbButton, { marginTop: 20 }]} onPress={handleShareDb}>
+          <Ionicons name="share-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={styles.eraseButtonText}>Share DB</Text>
+        </Pressable>
+
+        <Text style={styles.helperText}>
+          Share the raw SQLite database file for developer use or backup.
         </Text>
       </View>
     </ScrollView>
@@ -275,6 +417,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#4dabf7',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  shareDbButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7048e8',
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 8,

@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExercisePicker } from '../components/ExercisePicker';
+import { Exercise } from '../entities/Exercise';
 import { ExecutionExercise } from '../entities/ExecutionExercise';
 import { ExecutionCardioExercise } from '../entities/ExecutionCardioExercise';
 import {
@@ -22,16 +25,18 @@ import {
 import {
   useExecutionExerciseToggleCompleted,
   useExecutionExerciseIncrementSets,
+  useExecutionExerciseDecrementSets,
   useExecutionExerciseUpdate,
   useExecutionExerciseCreate,
+  useExecutionExerciseDelete,
   useLastWeightsMap,
 } from '../hooks/query/useExecutionExercise';
 import {
   useExecutionCardioExerciseCreate,
   useExecutionCardioExerciseToggleCompleted,
   useExecutionCardioExerciseUpdate,
+  useExecutionCardioExerciseDelete,
 } from '../hooks/query/useExecutionCardioExercise';
-import { useExerciseList } from '../hooks/query/useExercise';
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -45,108 +50,132 @@ export default function TrainingExecutionScreen() {
   const completeExecution = useExecutionComplete();
   const toggleCompleted = useExecutionExerciseToggleCompleted();
   const incrementSets = useExecutionExerciseIncrementSets();
+  const decrementSets = useExecutionExerciseDecrementSets();
   const updateExercise = useExecutionExerciseUpdate();
   const createExecutionExercise = useExecutionExerciseCreate();
+  const deleteExecutionExercise = useExecutionExerciseDelete();
   const createExecutionCardio = useExecutionCardioExerciseCreate();
+  const deleteExecutionCardio = useExecutionCardioExerciseDelete();
   const toggleCardioCompleted = useExecutionCardioExerciseToggleCompleted();
   const updateCardioExercise = useExecutionCardioExerciseUpdate();
-  const { data: allExercises = [] } = useExerciseList();
   const { data: lastWeights } = useLastWeightsMap();
 
   const insets = useSafeAreaInsets();
 
-  const [activeTimerId, setActiveTimerId] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  // Per-exercise rest timers: exerciseId -> seconds remaining
+  const [restTimers, setRestTimers] = useState<Record<number, number>>({});
+  const restIntervalRefs = useRef<Record<number, ReturnType<typeof setInterval>>>({});
 
-  const [activeCardioTimerId, setActiveCardioTimerId] = useState<number | null>(null);
-  const [cardioElapsed, setCardioElapsed] = useState(0);
-  const cardioIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Per-exercise cardio timers: exerciseId -> elapsed seconds
+  const [cardioTimers, setCardioTimers] = useState<Record<number, number>>({});
+  const cardioIntervalRefs = useRef<Record<number, ReturnType<typeof setInterval>>>({});
+
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (cardioIntervalRef.current) clearInterval(cardioIntervalRef.current);
+      Object.values(restIntervalRefs.current).forEach(clearInterval);
+      Object.values(cardioIntervalRefs.current).forEach(clearInterval);
     };
   }, []);
 
-  useEffect(() => {
-    if (timeLeft <= 0 && intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-      if (activeTimerId) {
-        Vibration.vibrate(500);
-        incrementSets.mutate(activeTimerId, {
-          onSuccess: () => refetch(),
-        });
-        setActiveTimerId(null);
-      }
-    }
-  }, [timeLeft, activeTimerId]);
-
   const startTimer = (exerciseId: number, restSeconds: number) => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-
-    if (activeTimerId === exerciseId) {
-      setActiveTimerId(null);
-      setTimeLeft(0);
+    if (restIntervalRefs.current[exerciseId]) {
+      clearInterval(restIntervalRefs.current[exerciseId]);
+      delete restIntervalRefs.current[exerciseId];
+      setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
       return;
     }
 
-    setActiveTimerId(exerciseId);
-    setTimeLeft(restSeconds);
+    let remaining = restSeconds;
+    setRestTimers((prev) => ({ ...prev, [exerciseId]: remaining }));
 
-    intervalRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
+    restIntervalRefs.current[exerciseId] = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(restIntervalRefs.current[exerciseId]);
+        delete restIntervalRefs.current[exerciseId];
+        setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
+        Vibration.vibrate(500);
+        incrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
+      } else {
+        setRestTimers((prev) => ({ ...prev, [exerciseId]: remaining }));
+      }
     }, 1000);
   };
 
-  const skipTimer = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
-    if (activeTimerId) {
-      incrementSets.mutate(activeTimerId, {
-        onSuccess: () => refetch(),
-      });
+  const skipTimer = (exerciseId: number) => {
+    if (restIntervalRefs.current[exerciseId]) {
+      clearInterval(restIntervalRefs.current[exerciseId]);
+      delete restIntervalRefs.current[exerciseId];
     }
-    setActiveTimerId(null);
-    setTimeLeft(0);
+    setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
+    incrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
   };
 
   const startCardioTimer = (itemId: number, startFrom: number) => {
-    if (cardioIntervalRef.current) clearInterval(cardioIntervalRef.current);
-
-    if (activeCardioTimerId === itemId) {
+    if (cardioIntervalRefs.current[itemId]) {
+      clearInterval(cardioIntervalRefs.current[itemId]);
+      delete cardioIntervalRefs.current[itemId];
+      const currentElapsed = cardioTimers[itemId] ?? startFrom;
+      setCardioTimers((prev) => { const next = { ...prev }; delete next[itemId]; return next; });
       updateCardioExercise.mutate(
-        { id: itemId, elapsedSeconds: cardioElapsed },
+        { id: itemId, elapsedSeconds: currentElapsed },
         { onSuccess: () => refetch() },
       );
-      setActiveCardioTimerId(null);
-      setCardioElapsed(0);
       return;
     }
 
-    setActiveCardioTimerId(itemId);
-    setCardioElapsed(startFrom);
+    let elapsed = startFrom;
+    setCardioTimers((prev) => ({ ...prev, [itemId]: elapsed }));
 
-    cardioIntervalRef.current = setInterval(() => {
-      setCardioElapsed((prev) => prev + 1);
+    cardioIntervalRefs.current[itemId] = setInterval(() => {
+      elapsed += 1;
+      setCardioTimers((prev) => ({ ...prev, [itemId]: elapsed }));
     }, 1000);
   };
 
   const stopCardioTimer = (itemId: number) => {
-    if (cardioIntervalRef.current) clearInterval(cardioIntervalRef.current);
-    cardioIntervalRef.current = null;
+    if (cardioIntervalRefs.current[itemId]) {
+      clearInterval(cardioIntervalRefs.current[itemId]);
+      delete cardioIntervalRefs.current[itemId];
+    }
+    const currentElapsed = cardioTimers[itemId] ?? 0;
+    setCardioTimers((prev) => { const next = { ...prev }; delete next[itemId]; return next; });
     updateCardioExercise.mutate(
-      { id: itemId, elapsedSeconds: cardioElapsed, completed: true },
+      { id: itemId, elapsedSeconds: currentElapsed, completed: true },
       { onSuccess: () => refetch() },
     );
-    setActiveCardioTimerId(null);
-    setCardioElapsed(0);
+  };
+
+  const handleDeleteExercise = (item: ExecutionExercise) => {
+    Alert.alert(
+      'Remove exercise',
+      `Remove "${item.exercise?.name ?? 'this exercise'}" from the session?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => deleteExecutionExercise.mutate(item.id, { onSuccess: () => refetch() }),
+        },
+      ],
+    );
+  };
+
+  const handleDeleteCardio = (item: ExecutionCardioExercise) => {
+    Alert.alert(
+      'Remove exercise',
+      `Remove "${item.cardioExercise?.name ?? 'this exercise'}" from the session?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => deleteExecutionCardio.mutate(item.id, { onSuccess: () => refetch() }),
+        },
+      ],
+    );
   };
 
   const handleFinishTraining = () => {
@@ -183,10 +212,8 @@ export default function TrainingExecutionScreen() {
     (execution?.cardioExercises ?? []).map((ce) => (ce.cardioExercise as any)?.id).filter(Boolean),
   );
 
-  const handleAddExerciseToExecution = async (exerciseId: number) => {
+  const handleAddExerciseToExecution = async (exercise: Exercise) => {
     if (!execution) return;
-    const exercise = allExercises.find((e) => e.id === exerciseId);
-    if (!exercise) return;
 
     await createExecutionExercise.mutateAsync({
       execution: { id: execution.id } as any,
@@ -222,14 +249,16 @@ export default function TrainingExecutionScreen() {
     const totalSets = parseInt(item.exercise?.sets, 10) || 1;
     const doneSets = item.completedSets ?? 0;
     const allSetsDone = doneSets >= totalSets;
-    const isTimerActive = activeTimerId === item.id;
-    const timerProgress = isTimerActive ? timeLeft / restSeconds : 0;
+    const isTimerActive = item.id in restTimers;
+    const timerTimeLeft = restTimers[item.id] ?? 0;
+    const timerProgress = isTimerActive ? timerTimeLeft / restSeconds : 0;
 
     return (
       <View style={[styles.card, item.completed && styles.cardCompleted]}>
         <View style={styles.cardHeader}>
           <Pressable
             style={[styles.checkbox, item.completed && styles.checkboxChecked]}
+            hitSlop={12}
             onPress={() =>
               toggleCompleted.mutate(item.id, { onSuccess: () => refetch() })
             }
@@ -246,6 +275,13 @@ export default function TrainingExecutionScreen() {
           >
             {item.exercise?.name ?? 'Exercise'}
           </Text>
+          <Pressable
+            style={styles.deleteButton}
+            hitSlop={12}
+            onPress={() => handleDeleteExercise(item)}
+          >
+            <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
+          </Pressable>
         </View>
 
         <View style={styles.statsContainer}>
@@ -322,6 +358,15 @@ export default function TrainingExecutionScreen() {
           <Text style={[styles.setsProgressText, allSetsDone && styles.setsProgressTextDone]}>
             {doneSets}/{totalSets}
           </Text>
+          {doneSets > 0 && (
+            <Pressable
+              style={styles.undoSetButton}
+              hitSlop={10}
+              onPress={() => decrementSets.mutate(item.id, { onSuccess: () => refetch() })}
+            >
+              <Ionicons name="arrow-undo" size={14} color="#aaa" />
+            </Pressable>
+          )}
         </View>
 
         {!allSetsDone ? (
@@ -343,7 +388,7 @@ export default function TrainingExecutionScreen() {
                       ]}
                     />
                   </View>
-                  <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+                  <Text style={styles.timerText}>{formatTime(timerTimeLeft)}</Text>
                   <Text style={styles.timerHint}>Tap to cancel</Text>
                 </View>
               ) : (
@@ -356,7 +401,7 @@ export default function TrainingExecutionScreen() {
               )}
             </Pressable>
             {isTimerActive && (
-              <Pressable style={styles.skipButton} onPress={skipTimer}>
+              <Pressable style={styles.skipButton} onPress={() => skipTimer(item.id)}>
                 <Ionicons name="play-skip-forward" size={14} color="#4dabf7" />
                 <Text style={styles.skipButtonText}>Skip</Text>
               </Pressable>
@@ -374,8 +419,8 @@ export default function TrainingExecutionScreen() {
 
   const renderCardioExercise = (item: ExecutionCardioExercise) => {
     const targetDuration = item.cardioExercise?.duration ?? 0;
-    const isTimerActive = activeCardioTimerId === item.id;
-    const elapsed = isTimerActive ? cardioElapsed : item.elapsedSeconds;
+    const isTimerActive = item.id in cardioTimers;
+    const elapsed = isTimerActive ? cardioTimers[item.id] : item.elapsedSeconds;
     const progress = targetDuration > 0 ? Math.min(elapsed / targetDuration, 1) : 0;
 
     return (
@@ -383,6 +428,7 @@ export default function TrainingExecutionScreen() {
         <View style={styles.cardHeader}>
           <Pressable
             style={[styles.checkbox, item.completed && styles.checkboxChecked]}
+            hitSlop={12}
             onPress={() =>
               toggleCardioCompleted.mutate(item.id, { onSuccess: () => refetch() })
             }
@@ -403,6 +449,13 @@ export default function TrainingExecutionScreen() {
             <Ionicons name="heart" size={12} color="#ff6b6b" />
             <Text style={styles.cardioBadgeText}>Cardio</Text>
           </View>
+          <Pressable
+            style={styles.deleteButton}
+            hitSlop={12}
+            onPress={() => handleDeleteCardio(item)}
+          >
+            <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
+          </Pressable>
         </View>
 
         <View style={styles.statsContainer}>
@@ -454,7 +507,7 @@ export default function TrainingExecutionScreen() {
                     />
                   </View>
                   <Ionicons name="pause" size={18} color="#ff6b6b" />
-                  <Text style={styles.timerText}>{formatTime(cardioElapsed)}</Text>
+                  <Text style={styles.timerText}>{formatTime(cardioTimers[item.id] ?? 0)}</Text>
                   <Text style={styles.timerHint}>Tap to pause</Text>
                 </View>
               ) : (
@@ -498,7 +551,12 @@ export default function TrainingExecutionScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
+      <View style={styles.container}>
       <View style={styles.headerSection}>
         <Text style={styles.presetName}>
           {execution.preset?.name ?? 'Training'}
@@ -556,7 +614,7 @@ export default function TrainingExecutionScreen() {
       <ExercisePicker
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSelectExercise={(ex) => handleAddExerciseToExecution(ex.id)}
+        onSelectExercise={(ex) => handleAddExerciseToExecution(ex)}
         onSelectCardioExercise={(ce) => handleAddCardioToExecution(ce.id)}
         excludeExerciseIds={alreadyAddedIds}
         excludeCardioExerciseIds={alreadyAddedCardioIds}
@@ -569,6 +627,7 @@ export default function TrainingExecutionScreen() {
         </Pressable>
       </View>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -900,6 +959,13 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 16,
     fontWeight: '700',
+  },
+  deleteButton: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  undoSetButton: {
+    padding: 4,
   },
   cardioBadge: {
     flexDirection: 'row',

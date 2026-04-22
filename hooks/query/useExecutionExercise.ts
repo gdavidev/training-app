@@ -71,8 +71,26 @@ export function useExecutionExerciseIncrementSets() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
+      const item = await repo().findOneOrFail({ where: { id }, relations: { exercise: true } });
+      const newCount = (item.completedSets ?? 0) + 1;
+      const totalSets = parseInt((item.exercise as any)?.sets, 10) || 0;
+      const updates: Partial<ExecutionExercise> = { completedSets: newCount };
+      if (totalSets > 0 && newCount >= totalSets) {
+        updates.completed = true;
+      }
+      return repo().update(id, updates);
+    },
+    onSuccess: () => invalidateAll(qc),
+  });
+}
+
+export function useExecutionExerciseDecrementSets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
       const item = await repo().findOneByOrFail({ id });
-      return repo().update(id, { completedSets: (item.completedSets ?? 0) + 1 });
+      const newCount = Math.max((item.completedSets ?? 0) - 1, 0);
+      return repo().update(id, { completedSets: newCount, completed: false });
     },
     onSuccess: () => invalidateAll(qc),
   });

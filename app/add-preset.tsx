@@ -269,34 +269,15 @@ export default function AddPresetScreen() {
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Add exercises</Text>
-            <Pressable
-              style={styles.addExerciseShortcut}
-              onPress={() => router.push('/add-exercise')}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="#4dabf7" />
-              <Text style={styles.addExerciseShortcutText}>Create new</Text>
-            </Pressable>
           </View>
 
-          {!hasAnyExercises ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="barbell-outline" size={40} color="#666" />
-              <Text style={styles.emptyText}>
-                You don&apos;t have any exercises yet.
-              </Text>
-              <Text style={styles.emptySubtext}>
-                Create an exercise first, then add it to this preset.
-              </Text>
-            </View>
-          ) : (
-            <Pressable
-              style={styles.addExerciseButton}
-              onPress={() => setShowPickerModal(true)}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="#4dabf7" />
-              <Text style={styles.addExerciseButtonText}>Add exercise</Text>
-            </Pressable>
-          )}
+          <Pressable
+            style={styles.addExerciseButton}
+            onPress={() => setShowPickerModal(true)}
+          >
+            <Ionicons name="add-circle-outline" size={20} color="#4dabf7" />
+            <Text style={styles.addExerciseButtonText}>Add exercise</Text>
+          </Pressable>
 
           <ExercisePicker
             visible={showPickerModal}
@@ -387,23 +368,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
   },
-  addExerciseShortcut: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: '#1e1e1e',
-    borderWidth: 1,
-    borderColor: '#333',
-    marginLeft: 'auto',
-  },
-  addExerciseShortcutText: {
-    marginLeft: 6,
-    color: '#4dabf7',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

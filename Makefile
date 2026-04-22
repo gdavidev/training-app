@@ -1,3 +1,6 @@
+ANDROID_HOME ?= $(HOME)/Android/Sdk
+export ANDROID_HOME
+
 .PHONY: apk apk-debug apk-all-arch prebuild clean
 
 # Build a release APK for arm64 only (most modern phones, fastest build)
@@ -32,6 +35,8 @@ apk-all-arch: prebuild
 # Regenerate the native android project and patch build config
 prebuild:
 	bunx expo prebuild -p android --no-install
+	@echo "sdk.dir=$(ANDROID_HOME)" > android/local.properties
+	@echo "Written android/local.properties: sdk.dir=$(ANDROID_HOME)"
 	@# Disable lint to avoid build failures from lint vital checks
 	@cd android/app && \
 		if ! grep -q 'checkReleaseBuilds false' build.gradle; then \

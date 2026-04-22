@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Exercise } from '../entities/Exercise';
 import { CardioExercise } from '../entities/CardioExercise';
 import { useExerciseList, useExerciseDelete } from '../hooks/query/useExercise';
@@ -15,6 +16,7 @@ type ListItem =
 
 export default function ManageExercisesScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data: exercises = [], isLoading: loadingEx } = useExerciseList();
   const { data: cardioExercises = [], isLoading: loadingCardio } = useCardioExerciseList();
   const deleteExercise = useExerciseDelete();
@@ -161,7 +163,7 @@ export default function ManageExercisesScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/add-exercise')}>
+      <Pressable style={[styles.fab, { bottom: insets.bottom + 16 }]} onPress={() => router.push('/add-exercise')}>
         <Ionicons name="add" size={26} color="#fff" />
       </Pressable>
     </View>
@@ -272,7 +274,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 24,
-    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 28,

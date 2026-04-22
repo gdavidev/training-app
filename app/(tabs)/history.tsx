@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import React, { useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TrainingDayCard, type TrainingDay } from '../../components/TrainingDayCard';
 import { aggregateMuscleCountsFromExercises } from '../../components/MuscleHighlightBody';
 import { useExecutionList } from '../../hooks/query/useExecution';
 
 export default function HistoryScreen() {
+  const insets = useSafeAreaInsets();
   const { data: executions = [], isLoading } = useExecutionList();
 
   const trainingDays = useMemo<TrainingDay[]>(() => {
@@ -61,7 +63,7 @@ export default function HistoryScreen() {
           data={trainingDays}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom + 16, 100) }]}
         />
       )}
     </View>
@@ -93,6 +95,5 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 100,
   },
 });

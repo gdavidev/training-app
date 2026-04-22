@@ -13,8 +13,8 @@ export type MuscleCount = {
  * exercises target that muscle.
  */
 export const BODY_COLORS = [
-  '#1e1e1e',
-  '#1a3a5c',
+  '#3a3a3a',
+  '#1e5280',
   '#2e7bb5',
   '#4dabf7',
 ] as const;
@@ -68,7 +68,7 @@ type InteractiveMuscleBodyProps = {
 export function InteractiveMuscleBody({
   selectedMuscles,
   side,
-  scale = 0.8,
+  scale = 1.0,
   onBodyPartPress,
 }: InteractiveMuscleBodyProps) {
   const data: ExtendedBodyPart[] = selectedMuscles.map((slug) => ({

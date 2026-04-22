@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Preset } from '../entities/Preset';
 import { MuscleHighlightBody, type MuscleCount } from './MuscleHighlightBody';
 import { usePresetList } from '../hooks/query/usePreset';
@@ -10,6 +11,7 @@ import { useLastWeightsMap } from '../hooks/query/useExecutionExercise';
 
 export default function TrainingSelectionScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data: presets = [], isLoading: loadingPresets } = usePresetList();
   const { data: currentExecution } = useCurrentExecution();
   const startExecution = useExecutionStart();
@@ -33,8 +35,16 @@ export default function TrainingSelectionScreen() {
   };
 
   const handleUsePreset = async (preset: Preset) => {
-    const exerciseEntries = preset.exercises.map(pe => pe.exercise).filter(Boolean);
-    const cardioEntries = (preset.cardioExercises ?? []).map(pce => pce.cardioExercise).filter(Boolean);
+    const exerciseEntries = preset.exercises
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map(pe => pe.exercise)
+      .filter(Boolean);
+    const cardioEntries = (preset.cardioExercises ?? [])
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map(pce => pce.cardioExercise)
+      .filter(Boolean);
 
     if (exerciseEntries.length === 0 && cardioEntries.length === 0) {
       Alert.alert(
@@ -120,7 +130,7 @@ export default function TrainingSelectionScreen() {
           data={presets}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom + 16, 32) }]}
           ListHeaderComponent={
             currentExecution
               ? (
@@ -185,7 +195,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 32,
   },
   currentTrainingCard: {
     backgroundColor: '#1e1e1e',

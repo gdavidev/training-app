@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Preset } from '../entities/Preset';
 import { usePresetDelete, usePresetList } from '../hooks/query/usePreset';
 
 export default function ManagePresetsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { data: presets = [], isLoading } = usePresetList();
   const deletePreset = usePresetDelete();
 
@@ -64,7 +66,7 @@ export default function ManagePresetsScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => router.push('/add-preset')}>
+      <Pressable style={[styles.fab, { bottom: insets.bottom + 16 }]} onPress={() => router.push('/add-preset')}>
         <Ionicons name="add" size={26} color="#fff" />
       </Pressable>
     </View>
@@ -127,7 +129,6 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 24,
-    bottom: 32,
     width: 56,
     height: 56,
     borderRadius: 28,

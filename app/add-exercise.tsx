@@ -4,8 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { type ExtendedBodyPart, type Slug } from 'react-native-body-highlighter';
 import { InteractiveMuscleBody } from '../components/MuscleHighlightBody';
-import { useExerciseList, useExerciseCreate, useExerciseUpdate } from '../hooks/query/useExercise';
-import { useCardioExerciseCreate, useCardioExerciseUpdate, useCardioExerciseList } from '../hooks/query/useCardioExercise';
+import { useCardioExerciseCreate, useCardioExerciseList, useCardioExerciseUpdate } from '../hooks/query/useCardioExercise';
+import { useExerciseCreate, useExerciseList, useExerciseUpdate } from '../hooks/query/useExercise';
 
 type ExerciseType = 'strength' | 'cardio';
 
@@ -243,7 +243,7 @@ export default function AddScreen() {
                                 <InteractiveMuscleBody
                                     selectedMuscles={selectedMuscles}
                                     side={bodySide}
-                                    scale={0.8}
+                                    scale={1.65}
                                     onBodyPartPress={toggleMuscle}
                                 />
                             </View>

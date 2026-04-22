@@ -75,11 +75,11 @@ export class InitialSchema1711300000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "IDX_exercise_muscles_exerciseId" ON "exercise_muscles_muscle" ("exerciseId")
+      CREATE INDEX IF NOT EXISTS "IDX_exercise_muscles_exerciseId" ON "exercise_muscles_muscle" ("exerciseId")
     `);
 
     await queryRunner.query(`
-      CREATE INDEX "IDX_exercise_muscles_muscleId" ON "exercise_muscles_muscle" ("muscleId")
+      CREATE INDEX IF NOT EXISTS "IDX_exercise_muscles_muscleId" ON "exercise_muscles_muscle" ("muscleId")
     `);
   }
 
