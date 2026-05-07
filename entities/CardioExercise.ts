@@ -14,7 +14,7 @@ export class CardioExercise {
   name: string;
 
   @Column({ type: "int", default: 0 })
-  duration: number;
+  maxDuration: number;
 
   @CreateDateColumn()
   createdAt: Date;

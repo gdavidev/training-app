@@ -3,6 +3,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Execution } from '../entities/Execution';
 import { MuscleHighlightBody, type MuscleCount } from './MuscleHighlightBody';
+import { ExerciseStatusBadge } from './ExerciseStatusBadge';
+import { getStrengthExerciseStatus, getCardioExerciseStatus } from '../utils/exerciseStatus';
 
 export type TrainingDay = {
   id: string;
@@ -41,10 +43,18 @@ export function TrainingDayCard({ day, compact }: Props) {
       <View style={styles.exerciseList}>
         {(day.execution.exercises ?? []).map((ee) => (
           <View key={ee.id} style={styles.exerciseRow}>
+            <ExerciseStatusBadge status={getStrengthExerciseStatus(ee)} compact />
             <Text style={styles.exerciseName}>{ee.exercise?.name ?? 'Exercise'}</Text>
             <Text style={styles.exerciseMeta}>
               {ee.weight} kg · {ee.exercise?.sets ?? '-'} x {ee.exercise?.reps ?? '-'}
             </Text>
+          </View>
+        ))}
+        {(day.execution.cardioExercises ?? []).map((ce) => (
+          <View key={`cardio-${ce.id}`} style={styles.exerciseRow}>
+            <ExerciseStatusBadge status={getCardioExerciseStatus(ce)} compact />
+            <Text style={styles.exerciseName}>{ce.cardioExercise?.name ?? 'Cardio'}</Text>
+            <Ionicons name="heart" size={12} color="#ff6b6b" style={styles.cardioIcon} />
           </View>
         ))}
       </View>
@@ -93,15 +103,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+    gap: 8,
   },
   exerciseName: {
     color: '#fff',
     fontSize: 14,
     flex: 1,
-    marginRight: 8,
   },
   exerciseMeta: {
     color: '#888',
     fontSize: 12,
+  },
+  cardioIcon: {
+    marginLeft: 4,
   },
 });

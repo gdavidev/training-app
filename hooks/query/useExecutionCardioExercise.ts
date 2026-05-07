@@ -66,3 +66,23 @@ export function useExecutionCardioExerciseDelete() {
     onSuccess: () => invalidateAll(qc),
   });
 }
+
+export function useExecutionCardioExerciseSwitchExercise() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      newCardioExerciseId,
+    }: {
+      id: number;
+      newCardioExerciseId: number;
+    }) => {
+      const item = await repo().findOneByOrFail({ id });
+      item.cardioExercise = { id: newCardioExerciseId } as any;
+      item.completed = false;
+      item.elapsedSeconds = 0;
+      return repo().save(item);
+    },
+    onSuccess: () => invalidateAll(qc),
+  });
+}

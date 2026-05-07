@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -15,8 +15,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardioExercise } from '../entities/CardioExercise';
 import { Exercise } from '../entities/Exercise';
-import { useCardioExerciseCreate, useCardioExerciseList } from '../hooks/query/useCardioExercise';
-import { useExerciseCreate, useExerciseList } from '../hooks/query/useExercise';
+import { useCardioExerciseList } from '../hooks/query/useCardioExercise';
+import { useExerciseList } from '../hooks/query/useExercise';
+import { setPendingExerciseCallback } from '../utils/exercisePickerCallback';
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -42,16 +43,12 @@ export function ExercisePicker({
   excludeCardioExerciseIds,
 }: ExercisePickerProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { data: allExercises = [] } = useExerciseList();
   const { data: allCardioExercises = [] } = useCardioExerciseList();
   const [exerciseSearch, setExerciseSearch] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
   const [addModalTab, setAddModalTab] = useState<'exercise' | 'cardio'>('exercise');
-  const [cardioCreateMode, setCardioCreateMode] = useState(false);
-  const [createDurationMin, setCreateDurationMin] = useState('30');
-  const [createDurationSec, setCreateDurationSec] = useState('0');
-
-  const createExercise = useExerciseCreate();
-  const createCardioExercise = useCardioExerciseCreate();
 
   const filteredExercises = useMemo(() => {
     return allExercises.filter((ex) => {
@@ -71,43 +68,27 @@ export function ExercisePicker({
 
   const handleClose = () => {
     setExerciseSearch('');
-    setCardioCreateMode(false);
-    setCreateDurationMin('30');
-    setCreateDurationSec('0');
     onClose();
   };
 
   const handleTabChange = (tab: 'exercise' | 'cardio') => {
     setAddModalTab(tab);
-    setCardioCreateMode(false);
   };
 
-  const handleCreateStrength = async () => {
-    const name = exerciseSearch.trim();
-    if (!name) return;
-    const created = await createExercise.mutateAsync({
-      name,
-      sets: '3',
-      reps: '10',
-      restTime: '60',
-      muscleKeys: [],
+  const handleNewExercise = (type: 'strength' | 'cardio') => {
+    setPendingExerciseCallback((exercise, createdType) => {
+      if (createdType === 'strength') {
+        onSelectExercise(exercise as Exercise);
+      } else {
+        onSelectCardioExercise(exercise as CardioExercise);
+      }
     });
-    onSelectExercise(created);
     handleClose();
+    router.push({
+      pathname: '/add-exercise',
+      params: { name: exerciseSearch.trim(), type },
+    });
   };
-
-  const handleCreateCardio = async () => {
-    const name = exerciseSearch.trim();
-    if (!name) return;
-    const totalDuration =
-      parseInt(createDurationMin || '0', 10) * 60 + parseInt(createDurationSec || '0', 10);
-    const created = await createCardioExercise.mutateAsync({ name, duration: totalDuration });
-    onSelectCardioExercise(created);
-    handleClose();
-  };
-
-  const searchName = exerciseSearch.trim();
-  const hasName = searchName.length > 0;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
@@ -145,11 +126,12 @@ export function ExercisePicker({
               </Pressable>
             </View>
             <TextInput
+              ref={searchInputRef}
               style={styles.searchInput}
-              placeholder={addModalTab === 'exercise' ? 'Search or type a name...' : 'Search or type a name...'}
+              placeholder="Search or type a name..."
               placeholderTextColor="#666"
               value={exerciseSearch}
-              onChangeText={(t) => { setExerciseSearch(t); setCardioCreateMode(false); }}
+              onChangeText={setExerciseSearch}
               autoFocus
             />
 
@@ -175,77 +157,19 @@ export function ExercisePicker({
                 )}
                 ListHeaderComponent={
                   <Pressable
-                    style={[styles.newExerciseRow, createExercise.isPending && { opacity: 0.6 }]}
-                    onPress={handleCreateStrength}
-                    disabled={!hasName || createExercise.isPending}
+                    style={styles.newExerciseRow}
+                    onPress={() => handleNewExercise('strength')}
                   >
-                    {createExercise.isPending ? (
-                      <ActivityIndicator size="small" color="#4dabf7" />
-                    ) : (
-                      <View style={styles.newExerciseIcon}>
-                        <Ionicons name="add" size={18} color="#4dabf7" />
-                      </View>
-                    )}
-                    <Text style={[styles.newExerciseText, !hasName && styles.newExerciseTextDim]}>
-                      {hasName ? `New exercise "${searchName}"` : 'New exercise'}
-                    </Text>
+                    <View style={styles.newExerciseIcon}>
+                      <Ionicons name="add" size={18} color="#4dabf7" />
+                    </View>
+                    <Text style={styles.newExerciseText}>New exercise</Text>
                   </Pressable>
                 }
                 ListEmptyComponent={
                   <Text style={styles.emptyModalText}>No matches</Text>
                 }
               />
-            ) : cardioCreateMode ? (
-              <View style={[styles.modalList, styles.cardioCreateForm]}>
-                <Text style={styles.createFormLabel}>Creating "{searchName}"</Text>
-                <Text style={styles.createFormSubLabel}>Set default duration</Text>
-                <View style={styles.durationRow}>
-                  <View style={styles.durationField}>
-                    <TextInput
-                      style={styles.durationInput}
-                      value={createDurationMin}
-                      onChangeText={setCreateDurationMin}
-                      keyboardType="numeric"
-                      placeholder="30"
-                      placeholderTextColor="#555"
-                      selectTextOnFocus
-                    />
-                    <Text style={styles.durationUnit}>min</Text>
-                  </View>
-                  <Text style={styles.durationSep}>:</Text>
-                  <View style={styles.durationField}>
-                    <TextInput
-                      style={styles.durationInput}
-                      value={createDurationSec}
-                      onChangeText={setCreateDurationSec}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#555"
-                      selectTextOnFocus
-                    />
-                    <Text style={styles.durationUnit}>sec</Text>
-                  </View>
-                </View>
-                <View style={styles.cardioCreateActions}>
-                  <Pressable
-                    style={styles.cancelCreateBtn}
-                    onPress={() => setCardioCreateMode(false)}
-                  >
-                    <Text style={styles.cancelCreateText}>Back</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.confirmCreateBtn, createCardioExercise.isPending && { opacity: 0.6 }]}
-                    onPress={handleCreateCardio}
-                    disabled={createCardioExercise.isPending}
-                  >
-                    {createCardioExercise.isPending ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.confirmCreateText}>Create &amp; Add</Text>
-                    )}
-                  </Pressable>
-                </View>
-              </View>
             ) : (
               <FlatList
                 data={filteredCardioExercises}
@@ -260,7 +184,7 @@ export function ExercisePicker({
                     <View style={{ flex: 1 }}>
                       <Text style={styles.exercisePickerName}>{item.name}</Text>
                       <Text style={[styles.exercisePickerMeta, { color: '#ff6b6b' }]}>
-                        {formatTime(item.duration)} duration
+                        {formatTime(item.maxDuration)} duration
                       </Text>
                     </View>
                     <Ionicons name="add" size={22} color="#ff6b6b" />
@@ -269,14 +193,13 @@ export function ExercisePicker({
                 ListHeaderComponent={
                   <Pressable
                     style={[styles.newExerciseRow, styles.newExerciseRowCardio]}
-                    onPress={() => hasName && setCardioCreateMode(true)}
-                    disabled={!hasName}
+                    onPress={() => handleNewExercise('cardio')}
                   >
                     <View style={[styles.newExerciseIcon, styles.newExerciseIconCardio]}>
                       <Ionicons name="add" size={18} color="#ff6b6b" />
                     </View>
-                    <Text style={[styles.newExerciseText, styles.newExerciseTextCardio, !hasName && styles.newExerciseTextDim]}>
-                      {hasName ? `New exercise "${searchName}"` : 'New exercise'}
+                    <Text style={[styles.newExerciseText, styles.newExerciseTextCardio]}>
+                      New exercise
                     </Text>
                   </Pressable>
                 }
@@ -384,82 +307,6 @@ const styles = StyleSheet.create({
   modalTabTextActive: {
     color: '#4dabf7',
   },
-  cardioCreateForm: {
-    paddingTop: 16,
-  },
-  createFormLabel: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  createFormSubLabel: {
-    color: '#888',
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 24,
-  },
-  durationField: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#333',
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  durationInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '600',
-    paddingVertical: 12,
-    textAlign: 'center',
-  },
-  durationUnit: {
-    color: '#666',
-    fontSize: 14,
-  },
-  durationSep: {
-    color: '#666',
-    fontSize: 22,
-    fontWeight: '600',
-  },
-  cardioCreateActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  cancelCreateBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#2a2a2a',
-    alignItems: 'center',
-  },
-  cancelCreateText: {
-    color: '#aaa',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  confirmCreateBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#c0392b',
-    alignItems: 'center',
-  },
-  confirmCreateText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
   newExerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -488,8 +335,5 @@ const styles = StyleSheet.create({
   },
   newExerciseTextCardio: {
     color: '#ff6b6b',
-  },
-  newExerciseTextDim: {
-    color: '#555',
   },
 });

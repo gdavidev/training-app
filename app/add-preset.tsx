@@ -182,7 +182,7 @@ export default function AddPresetScreen() {
                       </View>
                     </View>
                     <Text style={[styles.exerciseMeta, { color: '#ff6b6b' }]}>
-                      {formatDuration((ex as CardioExercise).duration)} duration
+                      {formatDuration((ex as CardioExercise).maxDuration)} duration
                     </Text>
                   </>
                 ) : (

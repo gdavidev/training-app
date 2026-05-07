@@ -1,0 +1,1287 @@
+{
+  "muscles": [
+    {
+      "id": 1,
+      "name": "quadriceps",
+      "key": "quadriceps"
+    },
+    {
+      "id": 2,
+      "name": "calves",
+      "key": "calves"
+    },
+    {
+      "id": 3,
+      "name": "abs",
+      "key": "abs"
+    },
+    {
+      "id": 4,
+      "name": "hamstring",
+      "key": "hamstring"
+    },
+    {
+      "id": 5,
+      "name": "triceps",
+      "key": "triceps"
+    },
+    {
+      "id": 6,
+      "name": "biceps",
+      "key": "biceps"
+    },
+    {
+      "id": 7,
+      "name": "chest",
+      "key": "chest"
+    },
+    {
+      "id": 8,
+      "name": "deltoids",
+      "key": "deltoids"
+    },
+    {
+      "id": 9,
+      "name": "trapezius",
+      "key": "trapezius"
+    },
+    {
+      "id": 10,
+      "name": "lower-back",
+      "key": "lower-back"
+    }
+  ],
+  "exercises": [
+    {
+      "id": 1,
+      "name": "LegPress",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 1,
+          "name": "quadriceps",
+          "key": "quadriceps"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Gemeos",
+      "sets": "4",
+      "reps": "12-45",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 2,
+          "name": "calves",
+          "key": "calves"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Agachamento Pêndulo",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 3,
+          "name": "abs",
+          "key": "abs"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Lower Abs",
+      "sets": "4",
+      "reps": "15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 4,
+          "name": "hamstring",
+          "key": "hamstring"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Upper Abs",
+      "sets": "4",
+      "reps": "15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 5,
+          "name": "triceps",
+          "key": "triceps"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Prancha",
+      "sets": "4",
+      "reps": "15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 6,
+          "name": "biceps",
+          "key": "biceps"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Cadeira Extensora",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 7,
+          "name": "chest",
+          "key": "chest"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Cadeira Flexora",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": [
+        {
+          "id": 8,
+          "name": "deltoids",
+          "key": "deltoids"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Cadeira Adutora",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 10,
+      "name": "Cadeira Abdutora",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 11,
+      "name": "Puxada Polia Triângulo",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 12,
+      "name": "Puxada Polia Barra Frente",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 13,
+      "name": "Rosca Direta Polia",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 14,
+      "name": "Rosca Martelo Alternada Com Halter",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 15,
+      "name": "Remada Curvada Supinada Com Barra",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 16,
+      "name": "Supino Máquina Declinado",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 17,
+      "name": "Supino Reto Deitado Articulado",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 18,
+      "name": "Elevação Lateral Com Halter De Pé",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 19,
+      "name": "Elevação Frontal Com Halter De Pé",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 20,
+      "name": "Tríceps Polia",
+      "sets": "4",
+      "reps": "12-18",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 21,
+      "name": "Tríceps Polia Corda",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 22,
+      "name": "Crucifixo",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 23,
+      "name": "Desenvolvimento Aberto Sentado Com Halter",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 24,
+      "name": "Tríceps Testa Polia Corda",
+      "sets": "4",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    },
+    {
+      "id": 25,
+      "name": "Lombar Maquina",
+      "sets": "3",
+      "reps": "12-15",
+      "restTime": "60",
+      "weightingMethod": "single",
+      "inputMode": "reps",
+      "muscles": []
+    }
+  ],
+  "cardioExercises": [
+    {
+      "id": 1,
+      "name": "Threadmill",
+      "maxDuration": 900
+    }
+  ],
+  "presets": [
+    {
+      "id": 1,
+      "name": "Leg",
+      "exercises": [
+        {
+          "id": 13,
+          "order": 0,
+          "exercise": {
+            "id": 1,
+            "name": "LegPress"
+          }
+        },
+        {
+          "id": 14,
+          "order": 1,
+          "exercise": {
+            "id": 2,
+            "name": "Gemeos"
+          }
+        },
+        {
+          "id": 15,
+          "order": 2,
+          "exercise": {
+            "id": 3,
+            "name": "Agachamento Pêndulo"
+          }
+        },
+        {
+          "id": 16,
+          "order": 3,
+          "exercise": {
+            "id": 8,
+            "name": "Cadeira Flexora"
+          }
+        },
+        {
+          "id": 17,
+          "order": 4,
+          "exercise": {
+            "id": 7,
+            "name": "Cadeira Extensora"
+          }
+        },
+        {
+          "id": 18,
+          "order": 5,
+          "exercise": {
+            "id": 10,
+            "name": "Cadeira Abdutora"
+          }
+        },
+        {
+          "id": 19,
+          "order": 6,
+          "exercise": {
+            "id": 9,
+            "name": "Cadeira Adutora"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 2,
+          "order": 7,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Abs",
+      "exercises": [
+        {
+          "id": 5,
+          "order": 0,
+          "exercise": {
+            "id": 5,
+            "name": "Upper Abs"
+          }
+        },
+        {
+          "id": 6,
+          "order": 1,
+          "exercise": {
+            "id": 4,
+            "name": "Lower Abs"
+          }
+        },
+        {
+          "id": 7,
+          "order": 2,
+          "exercise": {
+            "id": 6,
+            "name": "Prancha"
+          }
+        }
+      ],
+      "cardioExercises": []
+    },
+    {
+      "id": 3,
+      "name": "Pull",
+      "exercises": [
+        {
+          "id": 20,
+          "order": 0,
+          "exercise": {
+            "id": 15,
+            "name": "Remada Curvada Supinada Com Barra"
+          }
+        },
+        {
+          "id": 21,
+          "order": 1,
+          "exercise": {
+            "id": 13,
+            "name": "Rosca Direta Polia"
+          }
+        },
+        {
+          "id": 22,
+          "order": 2,
+          "exercise": {
+            "id": 12,
+            "name": "Puxada Polia Barra Frente"
+          }
+        },
+        {
+          "id": 23,
+          "order": 3,
+          "exercise": {
+            "id": 11,
+            "name": "Puxada Polia Triângulo"
+          }
+        },
+        {
+          "id": 24,
+          "order": 4,
+          "exercise": {
+            "id": 14,
+            "name": "Rosca Martelo Alternada Com Halter"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 3,
+          "order": 5,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Push",
+      "exercises": [
+        {
+          "id": 47,
+          "order": 0,
+          "exercise": {
+            "id": 17,
+            "name": "Supino Reto Deitado Articulado"
+          }
+        },
+        {
+          "id": 48,
+          "order": 1,
+          "exercise": {
+            "id": 22,
+            "name": "Crucifixo"
+          }
+        },
+        {
+          "id": 49,
+          "order": 2,
+          "exercise": {
+            "id": 23,
+            "name": "Desenvolvimento Aberto Sentado Com Halter"
+          }
+        },
+        {
+          "id": 50,
+          "order": 3,
+          "exercise": {
+            "id": 24,
+            "name": "Tríceps Testa Polia Corda"
+          }
+        },
+        {
+          "id": 51,
+          "order": 4,
+          "exercise": {
+            "id": 16,
+            "name": "Supino Máquina Declinado"
+          }
+        },
+        {
+          "id": 52,
+          "order": 5,
+          "exercise": {
+            "id": 20,
+            "name": "Tríceps Polia"
+          }
+        },
+        {
+          "id": 53,
+          "order": 6,
+          "exercise": {
+            "id": 19,
+            "name": "Elevação Frontal Com Halter De Pé"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 6,
+          "order": 7,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    }
+  ],
+  "executions": [
+    {
+      "id": 8,
+      "startedAt": "2026-03-27 10:15:56.818",
+      "isCompleted": true,
+      "createAt": "2026-03-27 10:15:56",
+      "preset": {
+        "id": 1,
+        "name": "Leg"
+      },
+      "exercises": [
+        {
+          "id": 32,
+          "weight": 30,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 1,
+            "name": "LegPress"
+          }
+        },
+        {
+          "id": 33,
+          "weight": 100,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 2,
+            "name": "Gemeos"
+          }
+        },
+        {
+          "id": 34,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 3,
+            "name": "Agachamento Pêndulo"
+          }
+        },
+        {
+          "id": 35,
+          "weight": 52,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 7,
+            "name": "Cadeira Extensora"
+          }
+        },
+        {
+          "id": 36,
+          "weight": 52,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 3,
+          "exercise": {
+            "id": 8,
+            "name": "Cadeira Flexora"
+          }
+        },
+        {
+          "id": 37,
+          "weight": 52,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 9,
+            "name": "Cadeira Adutora"
+          }
+        },
+        {
+          "id": 38,
+          "weight": 79,
+          "completed": true,
+          "completedReps": "12-15",
+          "completedSets": 4,
+          "exercise": {
+            "id": 10,
+            "name": "Cadeira Abdutora"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 4,
+          "completed": false,
+          "elapsedSeconds": 0,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "startedAt": "2026-04-06 11:18:54.231",
+      "isCompleted": true,
+      "createAt": "2026-04-06 11:18:54",
+      "preset": {
+        "id": 3,
+        "name": "Pull"
+      },
+      "exercises": [
+        {
+          "id": 39,
+          "weight": 28,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 11,
+            "name": "Puxada Polia Triângulo"
+          }
+        },
+        {
+          "id": 40,
+          "weight": 28,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 12,
+            "name": "Puxada Polia Barra Frente"
+          }
+        },
+        {
+          "id": 41,
+          "weight": 27,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 13,
+            "name": "Rosca Direta Polia"
+          }
+        },
+        {
+          "id": 42,
+          "weight": 12,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 14,
+            "name": "Rosca Martelo Alternada Com Halter"
+          }
+        },
+        {
+          "id": 43,
+          "weight": 25,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 15,
+            "name": "Remada Curvada Supinada Com Barra"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 5,
+          "completed": false,
+          "elapsedSeconds": 0,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "startedAt": "2026-04-11 13:35:17.665",
+      "isCompleted": true,
+      "createAt": "2026-04-11 13:35:17",
+      "preset": {
+        "id": 3,
+        "name": "Pull"
+      },
+      "exercises": [
+        {
+          "id": 44,
+          "weight": 28,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 11,
+            "name": "Puxada Polia Triângulo"
+          }
+        },
+        {
+          "id": 45,
+          "weight": 28,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 12,
+            "name": "Puxada Polia Barra Frente"
+          }
+        },
+        {
+          "id": 46,
+          "weight": 32,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 13,
+            "name": "Rosca Direta Polia"
+          }
+        },
+        {
+          "id": 47,
+          "weight": 12,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 14,
+            "name": "Rosca Martelo Alternada Com Halter"
+          }
+        },
+        {
+          "id": 48,
+          "weight": 25,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 15,
+            "name": "Remada Curvada Supinada Com Barra"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 6,
+          "completed": true,
+          "elapsedSeconds": 5,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "startedAt": "2026-04-11 14:50:58.105",
+      "isCompleted": true,
+      "createAt": "2026-04-11 14:50:58",
+      "preset": {
+        "id": 2,
+        "name": "Abs"
+      },
+      "exercises": [
+        {
+          "id": 49,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 3,
+          "exercise": {
+            "id": 4,
+            "name": "Lower Abs"
+          }
+        },
+        {
+          "id": 50,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 3,
+          "exercise": {
+            "id": 5,
+            "name": "Upper Abs"
+          }
+        },
+        {
+          "id": 51,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 6,
+            "name": "Prancha"
+          }
+        }
+      ],
+      "cardioExercises": []
+    },
+    {
+      "id": 13,
+      "startedAt": "2026-04-12 14:39:50.785",
+      "isCompleted": true,
+      "createAt": "2026-04-12 14:39:50",
+      "preset": {
+        "id": 4,
+        "name": "Push"
+      },
+      "exercises": [
+        {
+          "id": 60,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 16,
+            "name": "Supino Máquina Declinado"
+          }
+        },
+        {
+          "id": 61,
+          "weight": 38,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 2,
+          "exercise": {
+            "id": 17,
+            "name": "Supino Reto Deitado Articulado"
+          }
+        },
+        {
+          "id": 62,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 19,
+            "name": "Elevação Frontal Com Halter De Pé"
+          }
+        },
+        {
+          "id": 63,
+          "weight": 32,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 20,
+            "name": "Tríceps Polia"
+          }
+        },
+        {
+          "id": 64,
+          "weight": 5,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 22,
+            "name": "Crucifixo"
+          }
+        },
+        {
+          "id": 65,
+          "weight": 10,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 23,
+            "name": "Desenvolvimento Aberto Sentado Com Halter"
+          }
+        },
+        {
+          "id": 66,
+          "weight": 32,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 24,
+            "name": "Tríceps Testa Polia Corda"
+          }
+        },
+        {
+          "id": 67,
+          "weight": 32,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 3,
+          "exercise": {
+            "id": 25,
+            "name": "Lombar Maquina"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 7,
+          "completed": false,
+          "elapsedSeconds": 0,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "startedAt": "2026-04-15 10:43:19.142",
+      "isCompleted": true,
+      "createAt": "2026-04-15 10:43:19",
+      "preset": {
+        "id": 3,
+        "name": "Pull"
+      },
+      "exercises": [
+        {
+          "id": 75,
+          "weight": 28,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 11,
+            "name": "Puxada Polia Triângulo"
+          }
+        },
+        {
+          "id": 76,
+          "weight": 36,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 12,
+            "name": "Puxada Polia Barra Frente"
+          }
+        },
+        {
+          "id": 77,
+          "weight": 36,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 13,
+            "name": "Rosca Direta Polia"
+          }
+        },
+        {
+          "id": 78,
+          "weight": 12,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 14,
+            "name": "Rosca Martelo Alternada Com Halter"
+          }
+        },
+        {
+          "id": 79,
+          "weight": 32,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 15,
+            "name": "Remada Curvada Supinada Com Barra"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 9,
+          "completed": false,
+          "elapsedSeconds": 0,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "startedAt": "2026-04-16 10:33:11.482",
+      "isCompleted": true,
+      "createAt": "2026-04-16 10:33:11",
+      "preset": {
+        "id": 4,
+        "name": "Push"
+      },
+      "exercises": [
+        {
+          "id": 80,
+          "weight": 20,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 16,
+            "name": "Supino Máquina Declinado"
+          }
+        },
+        {
+          "id": 81,
+          "weight": 45,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 17,
+            "name": "Supino Reto Deitado Articulado"
+          }
+        },
+        {
+          "id": 82,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 19,
+            "name": "Elevação Frontal Com Halter De Pé"
+          }
+        },
+        {
+          "id": 83,
+          "weight": 32,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 20,
+            "name": "Tríceps Polia"
+          }
+        },
+        {
+          "id": 84,
+          "weight": 5,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 22,
+            "name": "Crucifixo"
+          }
+        },
+        {
+          "id": 85,
+          "weight": 10,
+          "completed": true,
+          "completedReps": "",
+          "completedSets": 4,
+          "exercise": {
+            "id": 23,
+            "name": "Desenvolvimento Aberto Sentado Com Halter"
+          }
+        },
+        {
+          "id": 86,
+          "weight": 32,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 24,
+            "name": "Tríceps Testa Polia Corda"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 10,
+          "completed": false,
+          "elapsedSeconds": 0,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "startedAt": "2026-04-21 14:16:55.163",
+      "isCompleted": false,
+      "createAt": "2026-04-21 14:16:55",
+      "preset": {
+        "id": 1,
+        "name": "Leg"
+      },
+      "exercises": [
+        {
+          "id": 87,
+          "weight": 30,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 1,
+            "name": "LegPress"
+          }
+        },
+        {
+          "id": 88,
+          "weight": 100,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 2,
+            "name": "Gemeos"
+          }
+        },
+        {
+          "id": 89,
+          "weight": 0,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 3,
+            "name": "Agachamento Pêndulo"
+          }
+        },
+        {
+          "id": 90,
+          "weight": 52,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 7,
+            "name": "Cadeira Extensora"
+          }
+        },
+        {
+          "id": 91,
+          "weight": 52,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 8,
+            "name": "Cadeira Flexora"
+          }
+        },
+        {
+          "id": 92,
+          "weight": 52,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 9,
+            "name": "Cadeira Adutora"
+          }
+        },
+        {
+          "id": 93,
+          "weight": 79,
+          "completed": false,
+          "completedReps": "",
+          "completedSets": 0,
+          "exercise": {
+            "id": 10,
+            "name": "Cadeira Abdutora"
+          }
+        }
+      ],
+      "cardioExercises": [
+        {
+          "id": 11,
+          "completed": false,
+          "elapsedSeconds": 0,
+          "cardioExercise": {
+            "id": 1,
+            "name": "Threadmill"
+          }
+        }
+      ]
+    }
+  ]
+}

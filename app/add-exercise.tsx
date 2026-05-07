@@ -6,6 +6,7 @@ import { type ExtendedBodyPart, type Slug } from 'react-native-body-highlighter'
 import { InteractiveMuscleBody } from '../components/MuscleHighlightBody';
 import { useCardioExerciseCreate, useCardioExerciseList, useCardioExerciseUpdate } from '../hooks/query/useCardioExercise';
 import { useExerciseCreate, useExerciseList, useExerciseUpdate } from '../hooks/query/useExercise';
+import { callPendingExerciseCallback } from '../utils/exercisePickerCallback';
 
 type ExerciseType = 'strength' | 'cardio';
 
@@ -58,8 +59,8 @@ export default function AddScreen() {
         } else if (editingCardioExercise) {
             setExerciseType('cardio');
             setName(editingCardioExercise.name);
-            setDurationMinutes(String(Math.floor(editingCardioExercise.duration / 60)));
-            setDurationSeconds(String(editingCardioExercise.duration % 60));
+            setDurationMinutes(String(Math.floor(editingCardioExercise.maxDuration / 60)));
+            setDurationSeconds(String(editingCardioExercise.maxDuration % 60));
             setInitialized(true);
         } else if (params.name || params.muscles) {
             if (params.name) setName(String(params.name));
@@ -92,13 +93,14 @@ export default function AddScreen() {
                     await updateCardioExercise.mutateAsync({
                         id: editingCardioExercise.id,
                         name: name.trim(),
-                        duration: totalDuration,
+                        maxDuration: totalDuration,
                     });
                 } else {
-                    await createCardioExercise.mutateAsync({
+                    const created = await createCardioExercise.mutateAsync({
                         name: name.trim(),
-                        duration: totalDuration,
+                        maxDuration: totalDuration,
                     });
+                    callPendingExerciseCallback(created, 'cardio');
                 }
             } else {
                 if (!sets || !reps) {
@@ -117,7 +119,8 @@ export default function AddScreen() {
                 if (editingExercise) {
                     await updateExercise.mutateAsync({ id: editingExercise.id, ...data });
                 } else {
-                    await createExercise.mutateAsync(data);
+                    const created = await createExercise.mutateAsync(data);
+                    callPendingExerciseCallback(created, 'strength');
                 }
             }
             router.back();

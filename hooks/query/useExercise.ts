@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppDataSource } from "../../data-source";
 import { Exercise } from "../../entities/Exercise";
+import { ExecutionExercise } from "../../entities/ExecutionExercise";
 import { Muscle } from "../../entities/Muscle";
 
 const repo = () => AppDataSource.getRepository(Exercise);
@@ -123,5 +124,18 @@ export function useExerciseDelete() {
   return useMutation({
     mutationFn: (id: number) => repo().delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: exerciseKeys.all }),
+  });
+}
+
+export function useExerciseHistory(exerciseId: number) {
+  return useQuery({
+    queryKey: ["exerciseHistory", exerciseId] as const,
+    queryFn: () =>
+      AppDataSource.getRepository(ExecutionExercise).find({
+        where: { exercise: { id: exerciseId }, execution: { isCompleted: true } },
+        relations: { execution: true },
+        order: { execution: { createAt: "ASC" } },
+      }),
+    enabled: !!exerciseId,
   });
 }

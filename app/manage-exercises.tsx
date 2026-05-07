@@ -75,7 +75,7 @@ export default function ManageExercisesScreen() {
                 </View>
               </View>
               <Text style={[styles.exerciseMeta, { color: '#ff6b6b' }]}>
-                {formatDuration(ce.duration)} duration
+                {formatDuration(ce.maxDuration)} duration
               </Text>
             </View>
             <Pressable onPress={() => handleDeleteCardio(ce)} hitSlop={10} style={styles.deleteBtn}>
@@ -104,9 +104,18 @@ export default function ManageExercisesScreen() {
               </Text>
             )}
           </View>
-          <Pressable onPress={() => handleDelete(ex)} hitSlop={10} style={styles.deleteBtn}>
-            <Ionicons name="trash-outline" size={20} color="#ff4444" />
-          </Pressable>
+          <View style={styles.cardActions}>
+            <Pressable
+              onPress={() => router.push({ pathname: '/exercise-detail', params: { id: String(ex.id) } })}
+              hitSlop={10}
+              style={styles.actionBtn}
+            >
+              <Ionicons name="stats-chart-outline" size={20} color="#4dabf7" />
+            </Pressable>
+            <Pressable onPress={() => handleDelete(ex)} hitSlop={10} style={styles.deleteBtn}>
+              <Ionicons name="trash-outline" size={20} color="#ff4444" />
+            </Pressable>
+          </View>
         </View>
       </Pressable>
     );
@@ -262,6 +271,14 @@ const styles = StyleSheet.create({
     color: '#4dabf7',
     fontSize: 12,
     marginTop: 4,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionBtn: {
+    padding: 8,
   },
   deleteBtn: {
     padding: 8,

@@ -104,6 +104,30 @@ export function useExecutionExerciseDelete() {
   });
 }
 
+export function useExecutionExerciseSwitchExercise() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      newExerciseId,
+      weight,
+    }: {
+      id: number;
+      newExerciseId: number;
+      weight: string;
+    }) => {
+      const item = await repo().findOneByOrFail({ id });
+      item.exercise = { id: newExerciseId } as any;
+      item.weight = weight;
+      item.completed = false;
+      item.completedSets = 0;
+      item.completedReps = '';
+      return repo().save(item);
+    },
+    onSuccess: () => invalidateAll(qc),
+  });
+}
+
 export function useLastWeightsMap() {
   return useQuery({
     queryKey: [...executionExerciseKeys.all, "lastWeights"] as const,

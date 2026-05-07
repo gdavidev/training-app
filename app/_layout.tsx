@@ -1,11 +1,24 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import * as Notifications from "expo-notifications";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import "reflect-metadata";
 import { AppDataSource } from "../data-source";
 import { queryClient } from "../hooks/query/queryClient";
+
+// Suppress foreground banners — rest timer notifications are only needed when backgrounded.
+// The in-app vibration + UI update serves as the foreground feedback.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: false,
+    shouldShowList: false,
+  }),
+});
 
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
@@ -26,6 +39,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     initDatabase();
+    if (Platform.OS === "android") {
+      Notifications.setNotificationChannelAsync("rest-timer", {
+        name: "Rest Timer",
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 500],
+      });
+    }
   }, []);
 
   if (dbError) {
@@ -91,6 +111,14 @@ export default function RootLayout() {
         <Stack.Screen
           name="training-execution"
           options={{ title: "Training" }}
+        />
+        <Stack.Screen
+          name="training-summary"
+          options={{ title: "Summary", headerBackVisible: false }}
+        />
+        <Stack.Screen
+          name="exercise-detail"
+          options={{ title: "Exercise Detail" }}
         />
       </Stack>
       <StatusBar style="light" />

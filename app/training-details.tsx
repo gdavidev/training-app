@@ -1,12 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ExecutionExercise } from '../entities/ExecutionExercise';
+import { ExecutionCardioExercise } from '../entities/ExecutionCardioExercise';
 import { useExecutionById } from '../hooks/query/useExecution';
 import { aggregateMuscleCountsFromExercises, MuscleHighlightBody, type MuscleCount } from '../components/MuscleHighlightBody';
+import { ExerciseStatusBadge } from '../components/ExerciseStatusBadge';
+import { getStrengthExerciseStatus, getCardioExerciseStatus } from '../utils/exerciseStatus';
+
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
 export default function TrainingDetailsScreen() {
+  const router = useRouter();
   const { id, dateLabel } = useLocalSearchParams<{ id?: string; dateLabel?: string }>();
   const executionId = id ? Number(id) : 0;
   const { data: execution, isLoading } = useExecutionById(executionId);
@@ -21,9 +31,19 @@ export default function TrainingDetailsScreen() {
       <View style={styles.cardContent}>
         <View style={styles.cardInfo}>
           <View style={styles.cardHeader}>
-            <Text style={styles.exerciseName}>
-              {item.exercise?.name ?? 'Exercise'}
-            </Text>
+            <Pressable
+              style={styles.exerciseNameBtn}
+              onPress={() =>
+                item.exercise?.id &&
+                router.push({ pathname: '/exercise-detail', params: { id: String(item.exercise.id) } })
+              }
+            >
+              <Text style={styles.exerciseName}>{item.exercise?.name ?? 'Exercise'}</Text>
+              {item.exercise?.id ? (
+                <Ionicons name="stats-chart-outline" size={13} color="#4dabf7" />
+              ) : null}
+            </Pressable>
+            <ExerciseStatusBadge status={getStrengthExerciseStatus(item)} />
           </View>
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
@@ -31,12 +51,47 @@ export default function TrainingDetailsScreen() {
               <Text style={styles.statValue}>{item.weight} kg</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Sets</Text>
+              <Text style={styles.statLabel}>Sets done</Text>
               <Text style={styles.statValue}>{item.completedSets ?? '-'}</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Reps</Text>
-              <Text style={styles.statValue}>{item.exercise?.reps ?? '-'}</Text>
+              <Text style={styles.statValue}>{item.completedReps || item.exercise?.reps || '-'}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderCardioItem = ({ item }: { item: ExecutionCardioExercise }) => (
+    <View style={styles.card}>
+      <View style={styles.cardContent}>
+        <View style={styles.cardInfo}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardioNameRow}>
+              <Text style={styles.exerciseName}>
+                {item.cardioExercise?.name ?? 'Cardio'}
+              </Text>
+              <View style={styles.cardioBadge}>
+                <Ionicons name="heart" size={12} color="#ff6b6b" />
+                <Text style={styles.cardioBadgeText}>Cardio</Text>
+              </View>
+            </View>
+            <ExerciseStatusBadge status={getCardioExerciseStatus(item)} />
+          </View>
+          <View style={styles.statsContainer}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Target</Text>
+              <Text style={styles.statValue}>
+                {formatDuration(item.cardioExercise?.duration ?? 0)}
+              </Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Elapsed</Text>
+              <Text style={styles.statValue}>
+                {formatDuration(item.elapsedSeconds ?? 0)}
+              </Text>
             </View>
           </View>
         </View>
@@ -51,6 +106,8 @@ export default function TrainingDetailsScreen() {
       : undefined);
 
   const exercises = execution?.exercises ?? [];
+  const cardioExercises = execution?.cardioExercises ?? [];
+  const totalExercises = exercises.length + cardioExercises.length;
 
   return (
     <View style={styles.container}>
@@ -58,7 +115,7 @@ export default function TrainingDetailsScreen() {
         <View style={styles.center}>
           <Text style={styles.emptyText}>Loading training...</Text>
         </View>
-      ) : exercises.length === 0 ? (
+      ) : totalExercises === 0 ? (
         <View style={styles.center}>
           <Ionicons name="barbell-outline" size={64} color="#666" />
           <Text style={styles.emptyText}>No exercises in this training.</Text>
@@ -71,7 +128,7 @@ export default function TrainingDetailsScreen() {
               <Text style={styles.trainingDate}>{headerDateLabel}</Text>
               <Text style={styles.trainingSubtitle}>
                 {execution?.preset?.name ? `${execution.preset.name} · ` : ''}
-                {exercises.length} {exercises.length === 1 ? 'exercise' : 'exercises'}
+                {totalExercises} {totalExercises === 1 ? 'exercise' : 'exercises'}
               </Text>
             </View>
           )}
@@ -90,6 +147,21 @@ export default function TrainingDetailsScreen() {
             keyExtractor={(item) => String(item.id)}
             renderItem={renderItem}
             contentContainerStyle={styles.listContainer}
+            ListFooterComponent={
+              cardioExercises.length > 0 ? (
+                <>
+                  <View style={styles.cardioSectionHeader}>
+                    <Ionicons name="heart" size={16} color="#ff6b6b" />
+                    <Text style={styles.cardioSectionTitle}>Cardio</Text>
+                  </View>
+                  {cardioExercises.map((ce) => (
+                    <View key={`cardio-${ce.id}`}>
+                      {renderCardioItem({ item: ce })}
+                    </View>
+                  ))}
+                </>
+              ) : null
+            }
           />
         </View>
       )}
@@ -183,11 +255,52 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 8,
+  },
+  exerciseNameBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   exerciseName: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    flexShrink: 1,
+  },
+  cardioNameRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  cardioBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 107, 107, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  cardioBadgeText: {
+    color: '#ff6b6b',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  cardioSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  cardioSectionTitle: {
+    color: '#ff6b6b',
+    fontSize: 16,
+    fontWeight: '700',
   },
   statsContainer: {
     flexDirection: 'row',

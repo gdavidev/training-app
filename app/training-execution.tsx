@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -29,6 +32,7 @@ import {
   useExecutionExerciseUpdate,
   useExecutionExerciseCreate,
   useExecutionExerciseDelete,
+  useExecutionExerciseSwitchExercise,
   useLastWeightsMap,
 } from '../hooks/query/useExecutionExercise';
 import {
@@ -36,12 +40,30 @@ import {
   useExecutionCardioExerciseToggleCompleted,
   useExecutionCardioExerciseUpdate,
   useExecutionCardioExerciseDelete,
+  useExecutionCardioExerciseSwitchExercise,
 } from '../hooks/query/useExecutionCardioExercise';
+
+type MenuTarget =
+  | { type: 'exercise'; item: ExecutionExercise }
+  | { type: 'cardio'; item: ExecutionCardioExercise };
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function parseTimeInput(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':');
+    const m = parseInt(parts[0], 10);
+    const s = parseInt(parts[1] ?? '0', 10);
+    if (isNaN(m) || isNaN(s)) return null;
+    return Math.max(0, m * 60 + s);
+  }
+  const n = parseInt(trimmed, 10);
+  return isNaN(n) ? null : Math.max(0, n);
 }
 
 export default function TrainingExecutionScreen() {
@@ -56,48 +78,134 @@ export default function TrainingExecutionScreen() {
   const deleteExecutionExercise = useExecutionExerciseDelete();
   const createExecutionCardio = useExecutionCardioExerciseCreate();
   const deleteExecutionCardio = useExecutionCardioExerciseDelete();
+  const switchExecutionCardio = useExecutionCardioExerciseSwitchExercise();
+  const switchExecutionExercise = useExecutionExerciseSwitchExercise();
   const toggleCardioCompleted = useExecutionCardioExerciseToggleCompleted();
   const updateCardioExercise = useExecutionCardioExerciseUpdate();
   const { data: lastWeights } = useLastWeightsMap();
 
   const insets = useSafeAreaInsets();
 
-  // Per-exercise rest timers: exerciseId -> seconds remaining
+  // UI display: exerciseId -> seconds remaining (recomputed from endTimes on each tick)
   const [restTimers, setRestTimers] = useState<Record<number, number>>({});
+  // Absolute end timestamps for background-safe timing: exerciseId -> Unix ms
+  const restTimerEndTimes = useRef<Record<number, number>>({});
   const restIntervalRefs = useRef<Record<number, ReturnType<typeof setInterval>>>({});
+  // Scheduled notification identifiers for cancellation
+  const restNotificationIds = useRef<Record<number, string>>({});
 
   // Per-exercise cardio timers: exerciseId -> elapsed seconds
   const [cardioTimers, setCardioTimers] = useState<Record<number, number>>({});
   const cardioIntervalRefs = useRef<Record<number, ReturnType<typeof setInterval>>>({});
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [menuTarget, setMenuTarget] = useState<MenuTarget | null>(null);
+  const [switchTarget, setSwitchTarget] = useState<MenuTarget | null>(null);
 
+  // Request notification permissions once on mount
+  useEffect(() => {
+    Notifications.requestPermissionsAsync().catch(() => {});
+  }, []);
+
+  // Cleanup intervals on unmount and cancel any pending notifications
   useEffect(() => {
     return () => {
       Object.values(restIntervalRefs.current).forEach(clearInterval);
       Object.values(cardioIntervalRefs.current).forEach(clearInterval);
+      Object.values(restNotificationIds.current).forEach((id) =>
+        Notifications.cancelScheduledNotificationAsync(id).catch(() => {}),
+      );
     };
   }, []);
 
-  const startTimer = (exerciseId: number, restSeconds: number) => {
+  // When returning from background, recalculate remaining time from absolute end timestamps
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      for (const [idStr, endTime] of Object.entries(restTimerEndTimes.current)) {
+        const exerciseId = Number(idStr);
+        const remaining = Math.ceil((endTime - Date.now()) / 1000);
+        if (remaining <= 0) {
+          if (restIntervalRefs.current[exerciseId]) {
+            clearInterval(restIntervalRefs.current[exerciseId]);
+            delete restIntervalRefs.current[exerciseId];
+          }
+          delete restTimerEndTimes.current[exerciseId];
+          const notifId = restNotificationIds.current[exerciseId];
+          if (notifId) {
+            Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
+            delete restNotificationIds.current[exerciseId];
+          }
+          setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
+          Vibration.vibrate(500);
+          incrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
+        } else {
+          setRestTimers((prev) => ({ ...prev, [exerciseId]: remaining }));
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const cancelRestTimer = (exerciseId: number) => {
     if (restIntervalRefs.current[exerciseId]) {
       clearInterval(restIntervalRefs.current[exerciseId]);
       delete restIntervalRefs.current[exerciseId];
-      setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
+    }
+    delete restTimerEndTimes.current[exerciseId];
+    const notifId = restNotificationIds.current[exerciseId];
+    if (notifId) {
+      Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
+      delete restNotificationIds.current[exerciseId];
+    }
+    setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
+  };
+
+  const startTimer = (exerciseId: number, restSeconds: number, exerciseName: string, isLastSet: boolean) => {
+    if (restIntervalRefs.current[exerciseId]) {
+      cancelRestTimer(exerciseId);
+      decrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
       return;
     }
 
-    let remaining = restSeconds;
-    setRestTimers((prev) => ({ ...prev, [exerciseId]: remaining }));
+    incrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
+
+    if (isLastSet) return;
+
+    const endTime = Date.now() + restSeconds * 1000;
+    restTimerEndTimes.current[exerciseId] = endTime;
+    setRestTimers((prev) => ({ ...prev, [exerciseId]: restSeconds }));
+
+    Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Rest complete!',
+        body: `Time to start your next set of ${exerciseName}`,
+        ...(Platform.OS === 'ios' ? { sound: true } : {}),
+        ...(Platform.OS === 'android' ? { channelId: 'rest-timer' } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: restSeconds,
+      },
+    })
+      .then((id) => { restNotificationIds.current[exerciseId] = id; })
+      .catch(() => {});
 
     restIntervalRefs.current[exerciseId] = setInterval(() => {
-      remaining -= 1;
+      const remaining = Math.ceil((restTimerEndTimes.current[exerciseId] - Date.now()) / 1000);
       if (remaining <= 0) {
-        clearInterval(restIntervalRefs.current[exerciseId]);
-        delete restIntervalRefs.current[exerciseId];
+        if (restIntervalRefs.current[exerciseId]) {
+          clearInterval(restIntervalRefs.current[exerciseId]);
+          delete restIntervalRefs.current[exerciseId];
+        }
+        delete restTimerEndTimes.current[exerciseId];
+        const notifId = restNotificationIds.current[exerciseId];
+        if (notifId) {
+          Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
+          delete restNotificationIds.current[exerciseId];
+        }
         setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
         Vibration.vibrate(500);
-        incrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
       } else {
         setRestTimers((prev) => ({ ...prev, [exerciseId]: remaining }));
       }
@@ -105,12 +213,7 @@ export default function TrainingExecutionScreen() {
   };
 
   const skipTimer = (exerciseId: number) => {
-    if (restIntervalRefs.current[exerciseId]) {
-      clearInterval(restIntervalRefs.current[exerciseId]);
-      delete restIntervalRefs.current[exerciseId];
-    }
-    setRestTimers((prev) => { const next = { ...prev }; delete next[exerciseId]; return next; });
-    incrementSets.mutate(exerciseId, { onSuccess: () => refetch() });
+    cancelRestTimer(exerciseId);
   };
 
   const startCardioTimer = (itemId: number, startFrom: number) => {
@@ -178,6 +281,75 @@ export default function TrainingExecutionScreen() {
     );
   };
 
+  const handleMenuRemove = () => {
+    if (!menuTarget) return;
+    const target = menuTarget;
+    setMenuTarget(null);
+    if (target.type === 'exercise') {
+      handleDeleteExercise(target.item as ExecutionExercise);
+    } else {
+      handleDeleteCardio(target.item as ExecutionCardioExercise);
+    }
+  };
+
+  const handleMenuSwitch = () => {
+    const target = menuTarget;
+    setMenuTarget(null);
+    setSwitchTarget(target);
+  };
+
+  const handleSwitchWithExercise = async (exercise: Exercise) => {
+    if (!execution || !switchTarget) return;
+    try {
+      if (switchTarget.type === 'exercise') {
+        // Update the existing record in place so it keeps its position in the list
+        await switchExecutionExercise.mutateAsync({
+          id: (switchTarget.item as ExecutionExercise).id,
+          newExerciseId: exercise.id,
+          weight: lastWeights?.get(exercise.id) ?? '0',
+        });
+      } else {
+        // Cross-type: delete cardio entry, create a new strength entry
+        await deleteExecutionCardio.mutateAsync((switchTarget.item as ExecutionCardioExercise).id);
+        await createExecutionExercise.mutateAsync({
+          execution: { id: execution.id } as any,
+          exercise: { id: exercise.id } as any,
+          weight: lastWeights?.get(exercise.id) ?? '0',
+          completed: false,
+          completedSets: 0,
+        } as any);
+      }
+      await refetch();
+    } finally {
+      setSwitchTarget(null);
+    }
+  };
+
+  const handleSwitchWithCardio = async (cardioExerciseId: number) => {
+    if (!execution || !switchTarget) return;
+    try {
+      if (switchTarget.type === 'cardio') {
+        // Update the existing record in place so it keeps its position in the list
+        await switchExecutionCardio.mutateAsync({
+          id: (switchTarget.item as ExecutionCardioExercise).id,
+          newCardioExerciseId: cardioExerciseId,
+        });
+      } else {
+        // Cross-type: delete strength entry, create a new cardio entry
+        await deleteExecutionExercise.mutateAsync((switchTarget.item as ExecutionExercise).id);
+        await createExecutionCardio.mutateAsync({
+          execution: { id: execution.id } as any,
+          cardioExercise: { id: cardioExerciseId } as any,
+          completed: false,
+          elapsedSeconds: 0,
+        } as any);
+      }
+      await refetch();
+    } finally {
+      setSwitchTarget(null);
+    }
+  };
+
   const handleFinishTraining = () => {
     if (!execution) return;
 
@@ -186,8 +358,18 @@ export default function TrainingExecutionScreen() {
     const allCompleted = exercisesCompleted && cardioCompleted;
 
     const doFinish = async () => {
+      const flushPromises = Object.entries(cardioTimers).map(([idStr, elapsedSeconds]) => {
+        const id = Number(idStr);
+        if (cardioIntervalRefs.current[id]) {
+          clearInterval(cardioIntervalRefs.current[id]);
+          delete cardioIntervalRefs.current[id];
+        }
+        return updateCardioExercise.mutateAsync({ id, elapsedSeconds });
+      });
+      setCardioTimers({});
+      await Promise.all(flushPromises);
       await completeExecution.mutateAsync(execution.id);
-      router.back();
+      router.replace({ pathname: '/training-summary', params: { executionId: String(execution.id) } });
     };
 
     if (!allCompleted) {
@@ -204,13 +386,35 @@ export default function TrainingExecutionScreen() {
     }
   };
 
+  const allExercises = execution?.exercises ?? [];
+  const cardioExercises = execution?.cardioExercises ?? [];
+
+  const activeStrengthExercises = allExercises.filter((ex) => !ex.completed);
+  const completedStrengthExercises = allExercises.filter((ex) => ex.completed);
+  const activeCardioExercises = cardioExercises.filter((ce) => !ce.completed);
+  const completedCardioExercises = cardioExercises.filter((ce) => ce.completed);
+  const hasDoneSection = completedStrengthExercises.length > 0 || completedCardioExercises.length > 0;
+
+  const completedCount =
+    (allExercises.filter((ex) => ex.completed).length) +
+    cardioExercises.filter((ce) => ce.completed).length;
+  const totalCount = allExercises.length + cardioExercises.length;
+
   const alreadyAddedIds = new Set(
-    execution?.exercises.map((ee) => (ee.exercise as any)?.id).filter(Boolean),
+    allExercises.map((ee) => (ee.exercise as any)?.id).filter(Boolean),
   );
 
   const alreadyAddedCardioIds = new Set(
-    (execution?.cardioExercises ?? []).map((ce) => (ce.cardioExercise as any)?.id).filter(Boolean),
+    cardioExercises.map((ce) => (ce.cardioExercise as any)?.id).filter(Boolean),
   );
+
+  const pickerExcludeExerciseIds = switchTarget?.type === 'exercise'
+    ? new Set([...alreadyAddedIds].filter((id) => id !== (switchTarget.item as ExecutionExercise).exercise?.id))
+    : alreadyAddedIds;
+
+  const pickerExcludeCardioIds = switchTarget?.type === 'cardio'
+    ? new Set([...alreadyAddedCardioIds].filter((id) => id !== (switchTarget.item as ExecutionCardioExercise).cardioExercise?.id))
+    : alreadyAddedCardioIds;
 
   const handleAddExerciseToExecution = async (exercise: Exercise) => {
     if (!execution) return;
@@ -238,17 +442,12 @@ export default function TrainingExecutionScreen() {
     setShowAddModal(false);
   };
 
-  const cardioExercises = execution?.cardioExercises ?? [];
-  const completedCount =
-    (execution?.exercises.filter((ex) => ex.completed).length ?? 0) +
-    cardioExercises.filter((ce) => ce.completed).length;
-  const totalCount = (execution?.exercises.length ?? 0) + cardioExercises.length;
-
   const renderExercise = ({ item }: { item: ExecutionExercise }) => {
     const restSeconds = parseInt(item.exercise?.restTime, 10) || 60;
     const totalSets = parseInt(item.exercise?.sets, 10) || 1;
     const doneSets = item.completedSets ?? 0;
     const allSetsDone = doneSets >= totalSets;
+    const isLastSet = doneSets + 1 >= totalSets;
     const isTimerActive = item.id in restTimers;
     const timerTimeLeft = restTimers[item.id] ?? 0;
     const timerProgress = isTimerActive ? timerTimeLeft / restSeconds : 0;
@@ -276,11 +475,11 @@ export default function TrainingExecutionScreen() {
             {item.exercise?.name ?? 'Exercise'}
           </Text>
           <Pressable
-            style={styles.deleteButton}
+            style={styles.menuButton}
             hitSlop={12}
-            onPress={() => handleDeleteExercise(item)}
+            onPress={() => setMenuTarget({ type: 'exercise', item })}
           >
-            <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
+            <Ionicons name="ellipsis-vertical" size={18} color="#888" />
           </Pressable>
         </View>
 
@@ -376,7 +575,7 @@ export default function TrainingExecutionScreen() {
                 styles.timerButton,
                 isTimerActive && styles.timerButtonActive,
               ]}
-              onPress={() => startTimer(item.id, restSeconds)}
+              onPress={() => startTimer(item.id, restSeconds, item.exercise?.name ?? 'exercise', isLastSet)}
             >
               {isTimerActive ? (
                 <View style={styles.timerContent}>
@@ -390,6 +589,13 @@ export default function TrainingExecutionScreen() {
                   </View>
                   <Text style={styles.timerText}>{formatTime(timerTimeLeft)}</Text>
                   <Text style={styles.timerHint}>Tap to cancel</Text>
+                </View>
+              ) : isLastSet ? (
+                <View style={styles.timerContent}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color="#51cf66" />
+                  <Text style={styles.timerButtonText}>
+                    Done — set {doneSets + 1}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.timerContent}>
@@ -418,13 +624,13 @@ export default function TrainingExecutionScreen() {
   };
 
   const renderCardioExercise = (item: ExecutionCardioExercise) => {
-    const targetDuration = item.cardioExercise?.duration ?? 0;
+    const targetDuration = item.cardioExercise?.maxDuration ?? 0;
     const isTimerActive = item.id in cardioTimers;
     const elapsed = isTimerActive ? cardioTimers[item.id] : item.elapsedSeconds;
     const progress = targetDuration > 0 ? Math.min(elapsed / targetDuration, 1) : 0;
 
     return (
-      <View key={`cardio-${item.id}`} style={[styles.card, item.completed && styles.cardCompleted]}>
+      <View style={[styles.card, item.completed && styles.cardCompleted]}>
         <View style={styles.cardHeader}>
           <Pressable
             style={[styles.checkbox, item.completed && styles.checkboxChecked]}
@@ -450,24 +656,41 @@ export default function TrainingExecutionScreen() {
             <Text style={styles.cardioBadgeText}>Cardio</Text>
           </View>
           <Pressable
-            style={styles.deleteButton}
+            style={styles.menuButton}
             hitSlop={12}
-            onPress={() => handleDeleteCardio(item)}
+            onPress={() => setMenuTarget({ type: 'cardio', item })}
           >
-            <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
+            <Ionicons name="ellipsis-vertical" size={18} color="#888" />
           </Pressable>
         </View>
 
         <View style={styles.statsContainer}>
           <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Target</Text>
-            <Text style={styles.statValue}>{formatTime(targetDuration)}</Text>
+            <Text style={styles.statLabel}>Max</Text>
+            <Text style={styles.statValue}>{targetDuration > 0 ? formatTime(targetDuration) : '—'}</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Elapsed</Text>
-            <Text style={[styles.statValue, elapsed >= targetDuration && targetDuration > 0 && { color: '#51cf66' }]}>
-              {formatTime(elapsed)}
-            </Text>
+            {isTimerActive ? (
+              <Text style={[styles.statValue, elapsed >= targetDuration && targetDuration > 0 && { color: '#51cf66' }]}>
+                {formatTime(elapsed)}
+              </Text>
+            ) : (
+              <TextInput
+                key={`elapsed-${item.id}-${item.elapsedSeconds}`}
+                style={[styles.weightInput, elapsed >= targetDuration && targetDuration > 0 && { color: '#51cf66' }]}
+                defaultValue={formatTime(elapsed)}
+                onEndEditing={(e) => {
+                  const parsed = parseTimeInput(e.nativeEvent.text);
+                  if (parsed !== null && parsed !== elapsed) {
+                    updateCardioExercise.mutate(
+                      { id: item.id, elapsedSeconds: parsed },
+                      { onSuccess: () => refetch() },
+                    );
+                  }
+                }}
+              />
+            )}
           </View>
         </View>
 
@@ -557,76 +780,118 @@ export default function TrainingExecutionScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       <View style={styles.container}>
-      <View style={styles.headerSection}>
-        <Text style={styles.presetName}>
-          {execution.preset?.name ?? 'Training'}
-        </Text>
-        <Text style={styles.dateLabel}>
-          {execution.startedAt
-            ? new Date(execution.startedAt).toLocaleDateString()
-            : ''}
-        </Text>
-        <View style={styles.progressRow}>
-          <View style={styles.progressBarBg}>
-            <View
-              style={[
-                styles.progressBarFill,
-                {
-                  width:
-                    totalCount > 0
-                      ? `${(completedCount / totalCount) * 100}%`
-                      : '0%',
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>
-            {completedCount}/{totalCount}
+        <View style={styles.headerSection}>
+          <Text style={styles.presetName}>
+            {execution.preset?.name ?? 'Training'}
           </Text>
+          <Text style={styles.dateLabel}>
+            {execution.startedAt
+              ? new Date(execution.startedAt).toLocaleDateString()
+              : ''}
+          </Text>
+          <View style={styles.progressRow}>
+            <View style={styles.progressBarBg}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width:
+                      totalCount > 0
+                        ? `${(completedCount / totalCount) * 100}%`
+                        : '0%',
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {completedCount}/{totalCount}
+            </Text>
+          </View>
+        </View>
+
+        <FlatList
+          data={activeStrengthExercises}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderExercise}
+          contentContainerStyle={styles.listContainer}
+          ListFooterComponent={
+            <>
+              {activeCardioExercises.map((item) => (
+                <React.Fragment key={`active-cardio-${item.id}`}>
+                  {renderCardioExercise(item)}
+                </React.Fragment>
+              ))}
+              {hasDoneSection && (
+                <>
+                  <View style={styles.doneSectionHeader}>
+                    <Ionicons name="checkmark" size={16} color="#51cf66" />
+                    <Text style={styles.doneSectionTitle}>Done</Text>
+                  </View>
+                  {completedStrengthExercises.map((item) => (
+                    <React.Fragment key={`done-strength-${item.id}`}>
+                      {renderExercise({ item })}
+                    </React.Fragment>
+                  ))}
+                  {completedCardioExercises.map((item) => (
+                    <React.Fragment key={`done-cardio-${item.id}`}>
+                      {renderCardioExercise(item)}
+                    </React.Fragment>
+                  ))}
+                </>
+              )}
+              <Pressable
+                style={styles.addExerciseButton}
+                onPress={() => setShowAddModal(true)}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#4dabf7" />
+                <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+              </Pressable>
+            </>
+          }
+        />
+
+        <ExercisePicker
+          visible={showAddModal || switchTarget !== null}
+          onClose={() => { setShowAddModal(false); setSwitchTarget(null); }}
+          onSelectExercise={(ex) =>
+            switchTarget ? handleSwitchWithExercise(ex) : handleAddExerciseToExecution(ex)
+          }
+          onSelectCardioExercise={(ce) =>
+            switchTarget ? handleSwitchWithCardio(ce.id) : handleAddCardioToExecution(ce.id)
+          }
+          excludeExerciseIds={pickerExcludeExerciseIds}
+          excludeCardioExerciseIds={pickerExcludeCardioIds}
+        />
+
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+          <Pressable style={styles.finishButton} onPress={handleFinishTraining}>
+            <Ionicons name="checkmark-done" size={20} color="#fff" />
+            <Text style={styles.finishButtonText}>Finish Training</Text>
+          </Pressable>
         </View>
       </View>
 
-      <FlatList
-        data={execution.exercises}
-        keyExtractor={(item) => String(item.id)}
-        renderItem={renderExercise}
-        contentContainerStyle={styles.listContainer}
-        ListFooterComponent={
-          <>
-            {cardioExercises.length > 0 && (
-              <View style={styles.cardioSectionHeader}>
-                <Ionicons name="heart" size={16} color="#ff6b6b" />
-                <Text style={styles.cardioSectionTitle}>Cardio</Text>
-              </View>
-            )}
-            {cardioExercises.map(renderCardioExercise)}
-            <Pressable
-              style={styles.addExerciseButton}
-              onPress={() => setShowAddModal(true)}
-            >
-              <Ionicons name="add-circle-outline" size={20} color="#4dabf7" />
-              <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+      {/* Context menu action sheet */}
+      <Modal
+        transparent
+        visible={menuTarget !== null}
+        animationType="fade"
+        onRequestClose={() => setMenuTarget(null)}
+      >
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuTarget(null)}>
+          <View style={styles.menuSheet}>
+            <Pressable style={styles.menuOption} onPress={handleMenuSwitch}>
+              <Ionicons name="swap-horizontal" size={20} color="#4dabf7" />
+              <Text style={styles.menuOptionText}>Switch exercise</Text>
             </Pressable>
-          </>
-        }
-      />
-
-      <ExercisePicker
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSelectExercise={(ex) => handleAddExerciseToExecution(ex)}
-        onSelectCardioExercise={(ce) => handleAddCardioToExecution(ce.id)}
-        excludeExerciseIds={alreadyAddedIds}
-        excludeCardioExerciseIds={alreadyAddedCardioIds}
-      />
-
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
-        <Pressable style={styles.finishButton} onPress={handleFinishTraining}>
-          <Ionicons name="checkmark-done" size={20} color="#fff" />
-          <Text style={styles.finishButtonText}>Finish Training</Text>
+            <View style={styles.menuDivider} />
+            <Pressable style={styles.menuOption} onPress={handleMenuRemove}>
+              <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
+              <Text style={[styles.menuOptionText, styles.menuOptionDestructive]}>Remove</Text>
+            </Pressable>
+          </View>
         </Pressable>
-      </View>
-    </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -948,19 +1213,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  cardioSectionHeader: {
+  doneSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
     marginTop: 4,
   },
-  cardioSectionTitle: {
-    color: '#ff6b6b',
+  doneSectionTitle: {
+    color: '#51cf66',
     fontSize: 16,
     fontWeight: '700',
   },
-  deleteButton: {
+  menuButton: {
     padding: 4,
     marginLeft: 4,
   },
@@ -980,5 +1245,37 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 11,
     fontWeight: '600',
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    backgroundColor: '#1e1e1e',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingVertical: 8,
+    paddingBottom: 32,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  menuOptionText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  menuOptionDestructive: {
+    color: '#ff6b6b',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#2a2a2a',
+    marginHorizontal: 24,
   },
 });

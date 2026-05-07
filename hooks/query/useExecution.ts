@@ -152,3 +152,23 @@ export function useExecutionDelete() {
     },
   });
 }
+
+export function usePreviousExecutionForPreset(
+  presetId: number | undefined,
+  excludeExecutionId: number | undefined,
+) {
+  return useQuery({
+    queryKey: ["executions", "previous-for-preset", presetId, excludeExecutionId],
+    queryFn: async () => {
+      if (!presetId) return null;
+      const results = await repo().find({
+        where: { preset: { id: presetId }, isCompleted: true },
+        relations: { preset: true, exercises: { exercise: true }, cardioExercises: { cardioExercise: true } },
+        order: { createAt: "DESC" },
+        take: 2,
+      });
+      return results.find((e) => e.id !== excludeExecutionId) ?? null;
+    },
+    enabled: !!presetId,
+  });
+}

@@ -19,7 +19,7 @@ export function useCardioExerciseList() {
 export function useCardioExerciseCreate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; duration: number }) =>
+    mutationFn: (data: { name: string; maxDuration: number }) =>
       repo().save(repo().create(data)),
     onSuccess: () => qc.invalidateQueries({ queryKey: cardioExerciseKeys.all }),
   });
@@ -28,7 +28,7 @@ export function useCardioExerciseCreate() {
 export function useCardioExerciseUpdate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: number; name?: string; duration?: number }) =>
+    mutationFn: ({ id, ...data }: { id: number; name?: string; maxDuration?: number }) =>
       repo().update(id, data),
     onSuccess: (_result, variables) => {
       qc.invalidateQueries({ queryKey: cardioExerciseKeys.all });

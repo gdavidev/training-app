@@ -12,13 +12,14 @@ import { InitialSchema1711300000000 } from "./migrations/1711300000000-InitialSc
 import { AddCardioExercise1711400000000 } from "./migrations/1711400000000-AddCardioExercise";
 import { AddPresetCardioExercise1711500000000 } from "./migrations/1711500000000-AddPresetCardioExercise";
 import { AddWeightingAndHold1711600000000 } from "./migrations/1711600000000-AddWeightingAndHold";
+import { RenameCardioDuration1711700000000 } from "./migrations/1711700000000-RenameCardioDuration";
 
 export const AppDataSource = new DataSource({
   type: "expo",
   database: "davi-training.db",
   driver: require("expo-sqlite"),
   entities: [Exercise, Muscle, Preset, PresetExercise, PresetCardioExercise, Execution, ExecutionExercise, CardioExercise, ExecutionCardioExercise],
-  migrations: [InitialSchema1711300000000, AddCardioExercise1711400000000, AddPresetCardioExercise1711500000000, AddWeightingAndHold1711600000000],
+  migrations: [InitialSchema1711300000000, AddCardioExercise1711400000000, AddPresetCardioExercise1711500000000, AddWeightingAndHold1711600000000, RenameCardioDuration1711700000000],
   migrationsRun: true,
   synchronize: false,
 });

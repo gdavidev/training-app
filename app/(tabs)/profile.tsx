@@ -40,6 +40,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await AppDataSource.getRepository(ExecutionExercise).clear();
+              await AppDataSource.getRepository(ExecutionCardioExercise).clear();
               await AppDataSource.getRepository(Execution).clear();
               queryClient.invalidateQueries();
             } catch (error) {
@@ -64,9 +65,9 @@ export default function ProfileScreen() {
         relations: ['exercises', 'exercises.exercise', 'cardioExercises', 'cardioExercises.cardioExercise', 'preset'],
       });
 
-      // Serialize as plain DTOs to avoid circular references created by TypeORM back-references
+      // Serialize as plain DTOs to avoid circular references and extra metadata from TypeORM
       const data = {
-        muscles,
+        muscles: muscles.map((m) => ({ id: m.id, name: m.name, key: m.key })),
         exercises: exercises.map((e) => ({
           id: e.id,
           name: e.name,
@@ -77,7 +78,7 @@ export default function ProfileScreen() {
           inputMode: e.inputMode,
           muscles: e.muscles?.map((m) => ({ id: m.id, name: m.name, key: m.key })),
         })),
-        cardioExercises,
+        cardioExercises: cardioExercises.map((ce) => ({ id: ce.id, name: ce.name, duration: ce.duration })),
         presets: presets.map((p) => ({
           id: p.id,
           name: p.name,
@@ -170,7 +171,7 @@ export default function ProfileScreen() {
                 if (data.cardioExercises?.length) {
                   const repo = AppDataSource.getRepository(CardioExercise);
                   for (const ce of data.cardioExercises) {
-                    await repo.save(repo.create({ name: ce.name, duration: ce.duration }));
+                    await repo.save(repo.create({ name: ce.name, maxDuration: ce.maxDuration }));
                   }
                 }
                 if (data.presets?.length) {
@@ -287,10 +288,13 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               await AppDataSource.getRepository(ExecutionExercise).clear();
+              await AppDataSource.getRepository(ExecutionCardioExercise).clear();
               await AppDataSource.getRepository(Execution).clear();
               await AppDataSource.getRepository(PresetExercise).clear();
+              await AppDataSource.getRepository(PresetCardioExercise).clear();
               await AppDataSource.getRepository(Preset).clear();
               await AppDataSource.getRepository(Exercise).clear();
+              await AppDataSource.getRepository(CardioExercise).clear();
               await AppDataSource.getRepository(Muscle).clear();
               queryClient.invalidateQueries();
             } catch (error) {
